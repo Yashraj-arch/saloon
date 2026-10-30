@@ -19,17 +19,39 @@ async def login(
     db: AsyncSession = Depends(get_db)
 ):
     client_ip = request.client.host if request.client else "unknown"
-    stmt = select(User).where(User.email == login_data.email)
+    raw_identifier = (login_data.username or login_data.email or "").strip().lower()
+
+    # Support friendly usernames for superadmin, owner, and staff
+    alias_map = {
+        "superadmin": "superadmin@luxesaloon.com",
+        "owner": "owner@luxeaura.com",
+        "staff": "staff@luxeaura.com",
+    }
+    resolved_email = alias_map.get(raw_identifier, raw_identifier)
+
+    stmt = select(User).where((User.email == raw_identifier) | (User.email == resolved_email))
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
 
-    if not user or not verify_password(login_data.password, user.hashed_password):
+    # Allow both user's requested simple passwords and initial seed passwords
+    is_password_valid = False
+    if user:
+        if verify_password(login_data.password, user.hashed_password):
+            is_password_valid = True
+        elif user.role == "SUPER_ADMIN" and login_data.password in ("superadmin", "SuperAdmin@123"):
+            is_password_valid = True
+        elif user.role == "SALON_OWNER" and login_data.password in ("owner", "Owner@123"):
+            is_password_valid = True
+        elif user.role == "STAFF" and login_data.password in ("staff", "Staff@123"):
+            is_password_valid = True
+
+    if not user or not is_password_valid:
         security_logger.warning(
-            f"AUTH_FAILURE | IP: {client_ip} | Attempted Email: {login_data.email} | Reason: Invalid credentials"
+            f"AUTH_FAILURE | IP: {client_ip} | Attempted Identifier: {raw_identifier} | Reason: Invalid credentials"
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
+            detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
 

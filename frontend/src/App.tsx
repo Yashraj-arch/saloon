@@ -42,11 +42,11 @@ const AppContent: React.FC = () => {
   // Switch persona conveniently
   const handleSwitchPersona = async (role: Role) => {
     if (role === 'SUPER_ADMIN') {
-      await performLogin('superadmin@luxesaloon.com', 'SuperAdmin@123');
+      await performLogin('superadmin', 'superadmin');
     } else if (role === 'SALON_OWNER') {
-      await performLogin('owner@luxeaura.com', 'Owner@123');
+      await performLogin('owner', 'owner');
     } else if (role === 'STAFF') {
-      await performLogin('staff@luxeaura.com', 'Staff@123');
+      await performLogin('staff', 'staff');
     }
   };
 
@@ -59,7 +59,7 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     const initApp = async () => {
       try {
-        await performLogin('owner@luxeaura.com', 'Owner@123');
+        await performLogin('owner', 'owner');
       } catch (e) {
         console.warn('Backend may still be starting up, waiting for user login...', e);
       }
@@ -117,11 +117,11 @@ const AppContent: React.FC = () => {
               className="space-y-3.5"
             >
               <div>
-                <label className="text-xs font-semibold text-[var(--text-muted)]">Account Email</label>
+                <label className="text-xs font-semibold text-[var(--text-muted)]">Username or Email</label>
                 <input
-                  type="email"
+                  type="text"
                   required
-                  placeholder="name@salon.com"
+                  placeholder="superadmin, owner, or staff"
                   value={emailInput}
                   onChange={(e) => setEmailInput(e.target.value)}
                   className="w-full mt-1 px-3.5 py-2.5 bg-sky-500/5 dark:bg-white/5 border border-[var(--bento-card-border)] rounded-xl text-xs text-[var(--text-main)] outline-none focus:border-sky-500 transition"
@@ -133,7 +133,7 @@ const AppContent: React.FC = () => {
                 <input
                   type="password"
                   required
-                  placeholder="••••••••"
+                  placeholder="superadmin, owner, or staff"
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
                   className="w-full mt-1 px-3.5 py-2.5 bg-sky-500/5 dark:bg-white/5 border border-[var(--bento-card-border)] rounded-xl text-xs text-[var(--text-main)] outline-none focus:border-sky-500 transition"
@@ -150,35 +150,41 @@ const AppContent: React.FC = () => {
               </button>
             </form>
 
-            {/* Quick Demo Logins */}
+            {/* Quick Demo Credentials & 1-Click Access */}
             <div className="mt-6 pt-5 border-t border-[var(--bento-card-border)]">
               <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] text-center mb-3">
-                1-Click Demo Logins
+                1-Click Instant Login (Credentials Ready)
               </p>
               <div className="grid grid-cols-3 gap-2 text-[11px]">
                 <button
                   type="button"
                   onClick={() => handleSwitchPersona('SALON_OWNER')}
                   className="p-2.5 rounded-xl bg-sky-500/5 dark:bg-white/5 hover:bg-sky-500/15 border border-[var(--bento-card-border)] text-sky-700 dark:text-sky-300 font-bold text-center transition cursor-pointer"
+                  title="Username: owner | Password: owner"
                 >
                   <Crown className="w-4 h-4 mx-auto mb-1 text-sky-600 dark:text-sky-400" />
                   Owner
+                  <span className="block text-[9px] font-normal opacity-75 mt-0.5 font-mono">owner / owner</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleSwitchPersona('SUPER_ADMIN')}
                   className="p-2.5 rounded-xl bg-amber-500/5 dark:bg-white/5 hover:bg-amber-500/15 border border-[var(--bento-card-border)] text-amber-700 dark:text-amber-300 font-bold text-center transition cursor-pointer"
+                  title="Username: superadmin | Password: superadmin"
                 >
                   <Shield className="w-4 h-4 mx-auto mb-1 text-amber-600 dark:text-amber-400" />
                   Super Admin
+                  <span className="block text-[9px] font-normal opacity-75 mt-0.5 font-mono">superadmin</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleSwitchPersona('STAFF')}
                   className="p-2.5 rounded-xl bg-emerald-500/5 dark:bg-white/5 hover:bg-emerald-500/15 border border-[var(--bento-card-border)] text-emerald-700 dark:text-emerald-300 font-bold text-center transition cursor-pointer"
+                  title="Username: staff | Password: staff"
                 >
                   <Scissors className="w-4 h-4 mx-auto mb-1 text-emerald-600 dark:text-emerald-400" />
                   Staff POS
+                  <span className="block text-[9px] font-normal opacity-75 mt-0.5 font-mono">staff / staff</span>
                 </button>
               </div>
             </div>
