@@ -1,12 +1,12 @@
-from typing import Optional, List, Any
+from typing import Optional, List
 from datetime import datetime, date
 from decimal import Decimal
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 
 # ----------------- Auth -----------------
 class LoginRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(..., min_length=6, max_length=128)
 
 class Token(BaseModel):
     access_token: str
@@ -28,21 +28,22 @@ class TenantCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=120)
     owner_name: str = Field(..., min_length=2, max_length=120)
     contact_email: EmailStr
-    contact_phone: str = Field(..., min_length=5, max_length=50)
-    address: Optional[str] = None
-    subscription_plan: str = "Pro"  # Starter, Pro, Enterprise
-    initial_owner_password: str = Field(..., min_length=6)
+    contact_phone: str = Field(..., pattern=r"^[0-9+\s\-()]{7,25}$")
+    address: Optional[str] = Field(None, max_length=255)
+    subscription_plan: str = Field("Pro", pattern="^(?i)(Starter|Pro|Enterprise)$")
+    initial_owner_password: str = Field(..., min_length=8, max_length=128)
 
 class TenantUpdate(BaseModel):
-    name: Optional[str] = None
-    owner_name: Optional[str] = None
-    contact_phone: Optional[str] = None
-    address: Optional[str] = None
-    subscription_plan: Optional[str] = None
-    subscription_status: Optional[str] = None
+    name: Optional[str] = Field(None, min_length=2, max_length=120)
+    owner_name: Optional[str] = Field(None, min_length=2, max_length=120)
+    contact_phone: Optional[str] = Field(None, pattern=r"^[0-9+\s\-()]{7,25}$")
+    address: Optional[str] = Field(None, max_length=255)
+    subscription_plan: Optional[str] = Field(None, pattern="^(?i)(Starter|Pro|Enterprise)$")
+    subscription_status: Optional[str] = Field(None, pattern="^(?i)(ACTIVE|SUSPENDED|EXPIRED)$")
     is_active: Optional[bool] = None
 
 class TenantResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     name: str
     slug: str
@@ -55,26 +56,24 @@ class TenantResponse(BaseModel):
     is_active: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
-
 # ----------------- User -----------------
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str = Field(..., min_length=6)
-    full_name: str = Field(..., min_length=2)
-    role: str = "STAFF"  # SALON_OWNER, STAFF
-    phone: Optional[str] = None
-    commission_rate: Optional[float] = 0.0
+    password: str = Field(..., min_length=8, max_length=128)
+    full_name: str = Field(..., min_length=2, max_length=120)
+    role: str = Field("STAFF", pattern="^(?i)(SALON_OWNER|STAFF)$")
+    phone: Optional[str] = Field(None, pattern=r"^[0-9+\s\-()]{7,25}$")
+    commission_rate: Optional[float] = Field(0.0, ge=0.0, le=100.0)
 
 class UserUpdate(BaseModel):
-    full_name: Optional[str] = None
-    phone: Optional[str] = None
-    commission_rate: Optional[float] = None
+    full_name: Optional[str] = Field(None, min_length=2, max_length=120)
+    phone: Optional[str] = Field(None, pattern=r"^[0-9+\s\-()]{7,25}$")
+    commission_rate: Optional[float] = Field(None, ge=0.0, le=100.0)
     is_active: Optional[bool] = None
-    password: Optional[str] = None
+    password: Optional[str] = Field(None, min_length=8, max_length=128)
 
 class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     tenant_id: Optional[int]
     email: str
@@ -85,31 +84,29 @@ class UserResponse(BaseModel):
     is_active: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
-
 # ----------------- Customer -----------------
 class CustomerCreate(BaseModel):
     full_name: str = Field(..., min_length=2, max_length=150)
-    phone: str = Field(..., min_length=7, max_length=50)
+    phone: str = Field(..., pattern=r"^[0-9+\s\-()]{7,25}$")
     email: Optional[EmailStr] = None
-    gender: Optional[str] = None
+    gender: Optional[str] = Field(None, max_length=20)
     birth_date: Optional[date] = None
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(None, max_length=1000)
 
 class CustomerUpdate(BaseModel):
-    full_name: Optional[str] = None
-    phone: Optional[str] = None
+    full_name: Optional[str] = Field(None, min_length=2, max_length=150)
+    phone: Optional[str] = Field(None, pattern=r"^[0-9+\s\-()]{7,25}$")
     email: Optional[EmailStr] = None
-    gender: Optional[str] = None
+    gender: Optional[str] = Field(None, max_length=20)
     birth_date: Optional[date] = None
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(None, max_length=1000)
 
 class CustomerSoftDelete(BaseModel):
     # Mandatory deletion reason enforced
-    reason: str = Field(..., min_length=5, description="Mandatory justification for deleting customer record")
+    reason: str = Field(..., min_length=5, max_length=500, description="Mandatory justification for deleting customer record")
 
 class CustomerResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     tenant_id: int
     full_name: str
@@ -123,17 +120,15 @@ class CustomerResponse(BaseModel):
     deleted_at: Optional[datetime] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
-
 # ----------------- Service & Options -----------------
 class ServiceOptionCreate(BaseModel):
-    group_name: str  # e.g., "Hairwash Shampoo", "Hair Length"
-    option_name: str  # e.g., "L'Oreal Spa Shampoo", "Long Hair (+₹400)"
-    extra_price: Decimal = Decimal("0.00")
+    group_name: str = Field(..., min_length=2, max_length=100)
+    option_name: str = Field(..., min_length=2, max_length=100)
+    extra_price: Decimal = Field(Decimal("0.00"), ge=0, le=100000)
     is_default: bool = False
 
 class ServiceOptionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     service_id: int
     group_name: str
@@ -141,26 +136,24 @@ class ServiceOptionResponse(BaseModel):
     extra_price: Decimal
     is_default: bool
 
-    class Config:
-        from_attributes = True
-
 class ServiceCreate(BaseModel):
-    category: str  # Hair, Skin, Spa, Nails, Grooming
-    name: str = Field(..., min_length=2)
-    description: Optional[str] = None
-    base_price: Decimal = Field(..., ge=0)
-    duration_minutes: int = 30
+    category: str = Field(..., min_length=2, max_length=80)
+    name: str = Field(..., min_length=2, max_length=150)
+    description: Optional[str] = Field(None, max_length=1000)
+    base_price: Decimal = Field(..., ge=0, le=1000000)
+    duration_minutes: int = Field(30, ge=5, le=720)
     options: List[ServiceOptionCreate] = []
 
 class ServiceUpdate(BaseModel):
-    category: Optional[str] = None
-    name: Optional[str] = None
-    description: Optional[str] = None
-    base_price: Optional[Decimal] = None
-    duration_minutes: Optional[int] = None
+    category: Optional[str] = Field(None, min_length=2, max_length=80)
+    name: Optional[str] = Field(None, min_length=2, max_length=150)
+    description: Optional[str] = Field(None, max_length=1000)
+    base_price: Optional[Decimal] = Field(None, ge=0, le=1000000)
+    duration_minutes: Optional[int] = Field(None, ge=5, le=720)
     is_active: Optional[bool] = None
 
 class ServiceResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     tenant_id: int
     category: str
@@ -171,28 +164,26 @@ class ServiceResponse(BaseModel):
     is_active: bool
     options: List[ServiceOptionResponse] = []
 
-    class Config:
-        from_attributes = True
-
 # ----------------- Bill & POS -----------------
 class SelectedOption(BaseModel):
-    group_name: str
-    option_name: str
-    extra_price: Decimal = Decimal("0.00")
+    group_name: str = Field(..., min_length=1, max_length=100)
+    option_name: str = Field(..., min_length=1, max_length=100)
+    extra_price: Decimal = Field(Decimal("0.00"), ge=0)
 
 class BillItemCreate(BaseModel):
-    service_id: int
+    service_id: int = Field(..., ge=1)
     selected_options: List[SelectedOption] = []
 
 class BillCreate(BaseModel):
-    customer_id: int
-    staff_id: Optional[int] = None  # Stylist who did service
-    items: List[BillItemCreate]
-    discount_amount: Decimal = Decimal("0.00")
-    payment_method: str = "CASH"  # CASH, UPI, CARD, SPLIT
-    notes: Optional[str] = None
+    customer_id: int = Field(..., ge=1)
+    staff_id: Optional[int] = Field(None, ge=1)
+    items: List[BillItemCreate] = Field(..., min_length=1)
+    discount_amount: Decimal = Field(Decimal("0.00"), ge=0)
+    payment_method: str = Field("CASH", pattern="^(?i)(CASH|UPI|CARD|SPLIT)$")
+    notes: Optional[str] = Field(None, max_length=500)
 
 class BillItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     service_id: int
     service_name: str
@@ -200,10 +191,8 @@ class BillItemResponse(BaseModel):
     selected_options_json: Optional[str] = None
     final_price: Decimal
 
-    class Config:
-        from_attributes = True
-
 class BillResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     tenant_id: int
     invoice_number: str
@@ -221,9 +210,6 @@ class BillResponse(BaseModel):
     billed_at: datetime
     items: List[BillItemResponse] = []
 
-    class Config:
-        from_attributes = True
-
 # ----------------- Analytics & Calendar -----------------
 class RevenueSummary(BaseModel):
     daily_revenue: Decimal
@@ -237,10 +223,10 @@ class RevenueSummary(BaseModel):
     total_active_services: int
 
 class CalendarDayRevenue(BaseModel):
-    date: str  # YYYY-MM-DD
+    date: str
     total_revenue: Decimal
     bills_count: int
-    intensity: str  # none, low, medium, high
+    intensity: str
 
 class CalendarDrilldownResponse(BaseModel):
     date: str

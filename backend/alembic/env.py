@@ -18,7 +18,8 @@ from app.models import Base
 config = context.config
 
 # Set sqlalchemy.url from our application settings using pymysql for sync migrations
-sync_url = settings.get_database_url().replace("mysql+aiomysql://", "mysql+pymysql://")
+# Escape % as %% so configparser doesn't raise ValueError on %40
+sync_url = settings.get_database_url().replace("mysql+aiomysql://", "mysql+pymysql://").replace("%", "%%")
 config.set_main_option("sqlalchemy.url", sync_url)
 
 # Interpret the config file for Python logging.

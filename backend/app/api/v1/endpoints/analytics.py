@@ -299,7 +299,7 @@ async def get_calendar_day_drilldown(
 
 @router.get("/revenue-chart")
 async def get_revenue_chart(
-    period: str = Query("week", regex="^(week|month|year)$"),
+    period: str = Query("week", pattern="^(week|month|year)$"),
     db: AsyncSession = Depends(get_db),
     owner: User = Depends(require_salon_owner)
 ):

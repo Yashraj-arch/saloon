@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_, desc
 
 from app.core.database import get_db
+from app.core.security_middleware import sanitize_input, security_logger
 from app.models import Customer, CustomerAuditLog, User
 from app.schemas import CustomerCreate, CustomerUpdate, CustomerSoftDelete, CustomerResponse
 from app.api.deps import require_staff_or_owner
@@ -43,27 +44,28 @@ async def create_customer(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_staff_or_owner)
 ):
+    clean_phone = customer_in.phone.strip()
     # Check if existing customer with same phone in this salon
     stmt = select(Customer).where(
         Customer.tenant_id == user.tenant_id,
-        Customer.phone == customer_in.phone,
+        Customer.phone == clean_phone,
         Customer.is_deleted == False
     )
     existing = await db.execute(stmt)
     if existing.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"An active customer with phone {customer_in.phone} already exists in this salon."
+            detail=f"An active customer with phone {clean_phone} already exists in this salon."
         )
 
     customer = Customer(
         tenant_id=user.tenant_id,
-        full_name=customer_in.full_name,
-        phone=customer_in.phone,
+        full_name=sanitize_input(customer_in.full_name),
+        phone=clean_phone,
         email=customer_in.email,
         gender=customer_in.gender,
         birth_date=customer_in.birth_date,
-        notes=customer_in.notes,
+        notes=sanitize_input(customer_in.notes),
         is_deleted=False
     )
     db.add(customer)
@@ -118,6 +120,8 @@ async def update_customer(
 
     data = update_data.model_dump(exclude_unset=True)
     for field, val in data.items():
+        if isinstance(val, str):
+            val = sanitize_input(val)
         setattr(customer, field, val)
 
     # Log update
@@ -146,11 +150,14 @@ async def soft_delete_customer(
     CRITICAL REQUIREMENT: Staff CANNOT delete a customer without providing a valid deletion reason.
     Record is preserved in the database with audit tracking.
     """
-    if not delete_payload.reason or len(delete_payload.reason.strip()) < 5:
+    raw_reason = delete_payload.reason.strip() if delete_payload.reason else ""
+    if len(raw_reason) < 5:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="A detailed reason for deletion is mandatory (minimum 5 characters)."
         )
+
+    clean_reason = sanitize_input(raw_reason)
 
     stmt = select(Customer).where(
         Customer.id == customer_id,
@@ -164,7 +171,7 @@ async def soft_delete_customer(
         raise HTTPException(status_code=404, detail="Active customer not found")
 
     customer.is_deleted = True
-    customer.deletion_reason = delete_payload.reason.strip()
+    customer.deletion_reason = clean_reason
     customer.deleted_by_user_id = user.id
     customer.deleted_at = datetime.now(timezone.utc)
 
@@ -174,9 +181,13 @@ async def soft_delete_customer(
         customer_id=customer.id,
         action="SOFT_DELETE",
         performed_by_user_id=user.id,
-        reason=delete_payload.reason.strip()
+        reason=clean_reason
     )
     db.add(audit)
+
+    security_logger.info(
+        f"CUSTOMER_SOFT_DELETE | Tenant ID: {user.tenant_id} | Customer: {customer.full_name} (ID {customer.id}) | Staff ID: {user.id} | Reason: {clean_reason}"
+    )
 
     await db.commit()
     await db.refresh(customer)

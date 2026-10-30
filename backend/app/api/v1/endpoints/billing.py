@@ -5,15 +5,18 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc
+from sqlalchemy import select, desc
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
-from app.models import Bill, BillItem, Customer, Service, User
+from app.core.security_middleware import sanitize_input, security_logger
+from app.models import Bill, BillItem, Customer, Service, ServiceOption, User
 from app.schemas import BillCreate, BillResponse, BillItemResponse
 from app.api.deps import require_staff_or_owner
 
 router = APIRouter(prefix="/billing", tags=["POS & Invoicing"])
+
+ALLOWED_PAYMENT_METHODS = {"CASH", "UPI", "CARD", "SPLIT"}
 
 def generate_invoice_number() -> str:
     now_str = datetime.now(timezone.utc).strftime("%Y%m%d")
@@ -27,9 +30,19 @@ async def create_bill(
     user: User = Depends(require_staff_or_owner)
 ):
     """
-    Generate customer invoice with base service prices and selected modifier options.
+    Generate customer invoice.
+    SECURITY HARDENING: Prices and modifiers are strictly verified against the database
+    to prevent client-side price tampering. Discounts are strictly bound.
     """
-    # Verify customer exists in this tenant
+    # 1. Validate payment method
+    pay_method = bill_in.payment_method.strip().upper()
+    if pay_method not in ALLOWED_PAYMENT_METHODS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid payment method '{bill_in.payment_method}'. Allowed: {list(ALLOWED_PAYMENT_METHODS)}"
+        )
+
+    # 2. Verify customer exists in this tenant
     cust_stmt = select(Customer).where(
         Customer.id == bill_in.customer_id,
         Customer.tenant_id == user.tenant_id,
@@ -38,7 +51,7 @@ async def create_bill(
     cust_res = await db.execute(cust_stmt)
     customer = cust_res.scalar_one_or_none()
     if not customer:
-        raise HTTPException(status_code=404, detail="Active customer not found")
+        raise HTTPException(status_code=404, detail="Active customer not found in this salon")
 
     staff_name = None
     if bill_in.staff_id:
@@ -51,21 +64,33 @@ async def create_bill(
     subtotal = Decimal("0.00")
     bill_items_to_create = []
 
+    # 3. Server-side price calculation & verification
     for item in bill_in.items:
         srv_stmt = select(Service).where(Service.id == item.service_id, Service.tenant_id == user.tenant_id)
         srv_res = await db.execute(srv_stmt)
         service = srv_res.scalar_one_or_none()
-        if not service:
-            raise HTTPException(status_code=400, detail=f"Service ID {item.service_id} not found in this salon")
+        if not service or not service.is_active:
+            raise HTTPException(status_code=400, detail=f"Active Service ID {item.service_id} not found in this salon")
 
-        item_total = service.base_price
+        item_total = Decimal(str(service.base_price))
         options_detail = []
+
         for opt in item.selected_options:
-            item_total += opt.extra_price
+            # Query verified option price from DB to reject client tampering
+            opt_stmt = select(ServiceOption).where(
+                ServiceOption.service_id == service.id,
+                ServiceOption.group_name == opt.group_name,
+                ServiceOption.option_name == opt.option_name
+            )
+            opt_res = await db.execute(opt_stmt)
+            db_option = opt_res.scalar_one_or_none()
+            verified_extra = Decimal(str(db_option.extra_price)) if db_option else Decimal("0.00")
+
+            item_total += verified_extra
             options_detail.append({
                 "group_name": opt.group_name,
                 "option_name": opt.option_name,
-                "extra_price": float(opt.extra_price)
+                "extra_price": float(verified_extra)
             })
 
         subtotal += item_total
@@ -77,8 +102,13 @@ async def create_bill(
             "final_price": item_total
         })
 
-    discount = bill_in.discount_amount if bill_in.discount_amount < subtotal else Decimal("0.00")
-    tax = Decimal("0.00")  # configurable tax
+    # 4. Validate discount
+    if bill_in.discount_amount < Decimal("0.00"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Discount amount cannot be negative")
+    
+    # Discount cannot exceed subtotal
+    discount = min(bill_in.discount_amount, subtotal)
+    tax = Decimal("0.00")
     total = (subtotal - discount) + tax
 
     bill = Bill(
@@ -91,9 +121,9 @@ async def create_bill(
         discount_amount=discount,
         tax_amount=tax,
         total_amount=total,
-        payment_method=bill_in.payment_method,
+        payment_method=pay_method,
         status="PAID",
-        notes=bill_in.notes,
+        notes=sanitize_input(bill_in.notes),
         billed_at=datetime.now(timezone.utc)
     )
     db.add(bill)
@@ -112,6 +142,10 @@ async def create_bill(
         db.add(b_item)
 
     await db.commit()
+
+    security_logger.info(
+        f"INVOICE_GENERATED | Tenant ID: {user.tenant_id} | Invoice: {bill.invoice_number} | Amount: ₹{total} | Payment: {pay_method} | Staff ID: {user.id}"
+    )
 
     # Fetch complete bill response
     query = (
@@ -162,7 +196,7 @@ async def list_bills(
         .options(selectinload(Bill.items), selectinload(Bill.customer), selectinload(Bill.staff))
         .where(Bill.tenant_id == user.tenant_id)
         .order_by(desc(Bill.billed_at))
-        .limit(limit)
+        .limit(min(limit, 100))  # Max 100 to prevent resource exhaustion attacks
         .offset(offset)
     )
     result = await db.execute(query)

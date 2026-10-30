@@ -8,8 +8,15 @@ logger = logging.getLogger("salon_crm.database")
 
 Base = declarative_base()
 
+import sys
+import os
+from sqlalchemy.pool import NullPool
+
 def get_engine():
     db_url = settings.get_database_url()
+    is_testing = "pytest" in sys.modules or os.environ.get("TESTING") == "1"
+    pool_kwargs = {"poolclass": NullPool} if is_testing else {"pool_pre_ping": True, "pool_recycle": 3600}
+
     try:
         if "mysql" in db_url:
             # Test synchronous connection quickly
@@ -26,8 +33,7 @@ def get_engine():
             return create_async_engine(
                 db_url,
                 echo=False,
-                pool_pre_ping=True,
-                pool_recycle=3600
+                **pool_kwargs
             )
     except Exception as e:
         logger.warning(
@@ -37,14 +43,14 @@ def get_engine():
         )
         return create_async_engine(
             "sqlite+aiosqlite:///./saloon.db",
-            echo=False
+            echo=False,
+            **({"poolclass": NullPool} if is_testing else {})
         )
 
     return create_async_engine(
         db_url,
         echo=False,
-        pool_pre_ping=True,
-        pool_recycle=3600
+        **pool_kwargs
     )
 
 engine = get_engine()
