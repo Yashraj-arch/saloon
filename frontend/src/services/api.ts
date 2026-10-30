@@ -22,21 +22,42 @@ function getAuthHeaders(): HeadersInit {
 }
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${BASE_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      ...getAuthHeaders(),
-      ...(options.headers || {})
-    }
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${endpoint}`, {
+      ...options,
+      headers: {
+        ...getAuthHeaders(),
+        ...(options.headers || {})
+      }
+    });
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : 'Network error';
+    throw new Error(`Unable to connect to backend server (${errorMsg}). Please make sure backend is running.`);
+  }
 
   if (!res.ok) {
-    let errMessage = 'Request failed';
+    let errMessage = `HTTP ${res.status} ${res.statusText}`;
     try {
-      const errData = await res.json();
-      errMessage = errData.detail || errData.message || JSON.stringify(errData);
+      const rawText = await res.text();
+      try {
+        const errData = JSON.parse(rawText);
+        if (typeof errData.detail === 'string') {
+          errMessage = errData.detail;
+        } else if (Array.isArray(errData.detail)) {
+          errMessage = errData.detail.map((d: { msg?: string }) => d.msg || JSON.stringify(d)).join(', ');
+        } else if (errData.message) {
+          errMessage = errData.message;
+        } else if (rawText) {
+          errMessage = rawText;
+        }
+      } catch {
+        if (rawText) {
+          errMessage = rawText.length > 200 ? `${rawText.slice(0, 200)}...` : rawText;
+        }
+      }
     } catch {
-      errMessage = await res.text();
+      // Ignored if stream cannot be read
     }
     throw new Error(errMessage);
   }
