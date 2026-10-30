@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yashraj Nimbalkar | Backend Software Engineer</title>
+    <meta name="description" content="B.Com graduate turned backend software engineer, building with FastAPI, JWT, and OAuth 2.0, with a growing focus on AI/ML.">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230044ff'/%3E%3Ctext x='50' y='68' font-family='Arial, sans-serif' font-size='52' font-weight='700' fill='white' text-anchor='middle'%3EYN%3C/text%3E%3C/svg%3E">
+    
+    <!-- Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Three.js (r128) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Fullscreen 3D WebGL Background Canvas -->
+    <canvas id="bg3dCanvas"></canvas>
+
+    <!-- Navigation -->
+    <nav id="navbar">
+        <div class="nav-left">
+            <div class="logo" onclick="scrollToSection('home')">YN</div>
+            <div class="status-badge" id="statusBadge">
+                <span class="status-dot"></span>
+                <span>Backend Dev @ Shekru Labs</span>
+                <span class="status-separator">•</span>
+                <span class="status-latency" id="latencyDisplay">22ms</span>
+            </div>
+        </div>
+
+        <div class="nav-actions">
+            <!-- Audio Toggle -->
+            <button class="sound-toggle-btn" id="soundToggle" title="Toggle tactile sound feedback" aria-label="Toggle sound">
+                <span class="sound-bars">
+                    <i></i><i></i><i></i>
+                </span>
+                <span class="sound-text">AUDIO</span>
+            </button>
+
+            <!-- Quick Search / Command Palette -->
+            <button class="cmdk-trigger" id="cmdkTrigger" title="Quick navigate (Ctrl + K)">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <span>Search</span>
+                <kbd id="cmdkKeyHint">Ctrl K</kbd>
+            </button>
+
+            <!-- Theme Toggle -->
+            <button class="theme-toggle" id="themeToggle" title="Toggle dark mode" aria-label="Toggle dark mode">
+                <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+                <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+            </button>
+
+            <!-- Mobile Hamburger -->
+            <div class="menu-toggle" id="mobile-menu" onclick="toggleMenu()" aria-label="Toggle menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+
+        <ul class="nav-links" id="navLinks">
+            <li><a href="#home" onclick="scrollToSection('home')">Home</a></li>
+            <li><a href="#about" onclick="scrollToSection('about')">About</a></li>
+            <li><a href="#experience" onclick="scrollToSection('experience')">Experience</a></li>
+            <li><a href="#achievements" onclick="scrollToSection('achievements')">Achievements</a></li>
+            <li><a href="#projects" onclick="scrollToSection('projects')">Projects</a></li>
+            <li><a href="#contact" onclick="scrollToSection('contact')">Contact</a></li>
+        </ul>
+    </nav>
+
+    <!-- Command Palette Modal -->
+    <div class="cmdk-overlay" id="cmdkOverlay"></div>
+    <div class="cmdk-modal" id="cmdkModal">
+        <div class="cmdk-input-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" class="cmdk-input" id="cmdkInput" placeholder="Jump to a section, project, or link..." autocomplete="off">
+            <span class="cmdk-esc">ESC</span>
+        </div>
+        <div class="cmdk-list" id="cmdkList"></div>
+    </div>
+
+    <!-- Skill Tag Projects & Live GitHub Modal -->
+    <div class="skill-overlay" id="skillOverlay"></div>
+    <div class="skill-modal" id="skillModal">
+        <div class="skill-modal-header">
+            <div>
+                <span class="skill-modal-eyebrow">Tagged with</span>
+                <h3 id="skillModalTitle">Python</h3>
+            </div>
+            <button class="skill-modal-close" id="skillModalClose" aria-label="Close modal">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="skill-modal-body" id="skillModalBody"></div>
+    </div>
+
+    <!-- HERO SECTION -->
+    <section id="home" class="hero">
+        <div class="hero-content">
+            <div class="hero-text reveal">
+                <h1>
+                    <span class="animated-word" id="animatedText"></span>
+                    <span class="animated-word" id="yashrajText">yashraj</span> here.
+                </h1>
+                <p>
+                    B.Com graduate turned backend software engineer, building with <strong>FastAPI, JWT, and OAuth 2.0</strong> — and growing into <strong>AI/ML</strong> along the way.
+                </p>
+
+                <div class="hero-cta-group">
+                    <a href="#projects" class="cta-button" onclick="scrollToSection('projects')">
+                        <span>View my work</span>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                            <path d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                    </a>
+                    <a href="#about" class="cta-secondary" onclick="scrollToSection('about')">
+                        <span>Read my story</span>
+                    </a>
+                </div>
+
+                <!-- Verified Metric Badges (Real, Non-AI-Slop Evidence) -->
+                <div class="hero-metrics-ribbon">
+                    <div class="metric-pill">
+                        <span class="metric-accent">₹100/u</span>
+                        <span class="metric-desc">Cost cut from ₹160 (Dhani Agro)</span>
+                    </div>
+                    <div class="metric-pill">
+                        <span class="metric-accent">67%</span>
+                        <span class="metric-desc">Peak Gross Margin</span>
+                    </div>
+                    <div class="metric-pill">
+                        <span class="metric-accent">8.83</span>
+                        <span class="metric-desc">B.Com CGPA (SPPU)</span>
+                    </div>
+                    <div class="metric-pill">
+                        <span class="metric-accent">90%ile</span>
+                        <span class="metric-desc">MCA CET Rank</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hero-visual">
+                <!-- Interactive 3D Orbit Badge -->
+                <div class="code-card reveal spotlight 3d-tilt-card" data-tilt>
+                    <div class="code-card-header">
+                        <div class="code-card-tabs">
+                            <button class="code-tab-btn active" data-file="main">main.py</button>
+                            <button class="code-tab-btn" data-file="auth">auth.py</button>
+                            <button class="code-tab-btn" data-file="model">model.py</button>
+                            <button class="code-tab-btn" data-file="attention">attention.py</button>
+                        </div>
+                        <div class="code-card-actions">
+                            <button class="code-icon-btn" id="codeDownloadBtn" title="Download active file" aria-label="Download code">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="7 10 12 15 17 10"></polyline>
+                                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                                </svg>
+                            </button>
+                            <button class="code-icon-btn" id="codeCopyBtn" title="Copy code" aria-label="Copy code">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="code-card-lang-bar">
+                        <span class="code-lang-tag">Python 3.12</span>
+                        <span class="code-file-hint" id="activeFileHint">FastAPI Profile Endpoint</span>
+                    </div>
+                    <pre class="code-card-body"><code id="codeSnippet"></code></pre>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Code Snippets JSON Data -->
+    <script id="code-data" type="application/json">
+    {
+        "main": "@app.get(\"/developer\")\nasync def get_profile():\n    return {\n        \"name\": \"Yashraj Nimbalkar\",\n        \"specialty\": \"High-concurrency backend architecture\",\n        \"stack\": [\"FastAPI\", \"JWT\", \"SQLAlchemy\", \"PyTorch\"],\n        \"experience\": \"Shekru Labs Pvt Ltd\"\n    }",
+        "auth": "@app.post(\"/auth/token\")\nasync def login(form: OAuth2PasswordRequestForm = Depends()):\n    user = authenticate_user(form.username, form.password)\n    if not user:\n        raise HTTPException(status_code=401, detail=\"Invalid credentials\")\n    token = create_jwt_token(data={\"sub\": user.username, \"role\": user.role})\n    return {\"access_token\": token, \"token_type\": \"bearer\"}",
+        "model": "class Property(Base):\n    __tablename__ = \"properties\"\n\n    id = Column(Integer, primary_key=True, index=True)\n    address = Column(String, nullable=False)\n    valuation = Column(Float, nullable=False)\n    owner_id = Column(Integer, ForeignKey(\"users.id\"))\n\n    owner = relationship(\"User\", back_populates=\"properties\")",
+        "attention": "class MultiHeadAttention(nn.Module):\n    def __init__(self, d_model: int, n_heads: int):\n        super().__init__()\n        self.q = nn.Linear(d_model, d_model)\n        self.k = nn.Linear(d_model, d_model)\n        self.v = nn.Linear(d_model, d_model)\n\n    def forward(self, x, mask=None):\n        scores = (self.q(x) @ self.k(x).transpose(-2, -1)) / math.sqrt(x.size(-1))\n        if mask is not None:\n            scores = scores.masked_fill(mask == 0, -1e9)\n        return F.softmax(scores, dim=-1) @ self.v(x)"
+    }
+    </script>
+
+    <!-- ABOUT SECTION -->
+    <section id="about">
+        <h2 class="section-title reveal">about me</h2>
+        <div class="about-content">
+            <div class="about-text reveal">
+                <p>
+                    Hello, I'm Yashraj Nimbalkar!
+                    Before I got into software engineering, I spent years building actual businesses. I learned pretty quickly that
+                    <strong>a system only matters if it actually holds up in production, under real users and real load.</strong>
+                </p>
+                <p>
+                    At 17, I started <strong>ClickForAyurveda</strong>, an e-commerce website achieving 25–45% in profit margins.
+                    I sourced products, built the brand, and handled all the digital marketing, including Facebook ads,
+                    Instagram content, and health blogs.
+                    But I spent most of my time analyzing unit economics: CAC vs LTV, retention rates, demand patterns.
+                    Eventually, competition ramped up, ad costs exploded, and the math stopped making sense. I made the
+                    call to shut it down. Not easy, but it was the right move.
+                </p>
+                <p>
+                    I founded <strong>Dhani Agro Food Industries</strong>, running a tofu production plant for 3 years.
+                    Managed the full production cycle and supplied 12 hotels every day.
+                    I figured out how to cut production costs from ₹160 to ₹100 per unit through observation, innovation
+                    and experimentation.
+                    I also got into product innovation & made kalakand (a tofu-based sweet) that originally cost
+                    <strong>₹220/kg to make and sold for ₹350/kg.</strong>
+                    I reformulated it with gulkand and essences, which brought production cost to <strong>₹240/kg but
+                    let us sell it at ₹400/kg. That pushed margins from 59% to 67%, an 8 percentage point jump.</strong>
+                    The daily work involved inventory planning, demand forecasting, supplier negotiations, and making
+                    sure quality stayed consistent.
+                </p>
+                <p>
+                    That instinct for taking a system apart and rebuilding it properly is what pulled me into backend
+                    engineering. Today I build APIs with <strong>FastAPI</strong>, handle authentication with
+                    <strong>JWT and OAuth 2.0</strong>, and work with <strong>SQL/SQLAlchemy</strong> to
+                    design the systems underneath a product rather than the storefront on top of it.
+                </p>
+                <p>
+                    I finished my <strong>BCom in Banking and Finance with an 8.83 CGPA from SPPU University.</strong>
+                    Now I'm pursuing an <strong>MCA in AI & Machine Learning</strong> at Amity University with an ongoing 8.32 CGPA.
+                    On the AI side, I study the fundamentals of <strong>PyTorch, NLP, and LLMs</strong>, and train small
+                    models from scratch to understand what happens under the hood: embeddings, attention, and the full
+                    training loop. I've also applied this in practice, implementing <strong>RAG pipelines and LLM
+                    integrations</strong> in a few of my own projects, so the AI work isn't limited to theory.
+                </p>
+            </div>
+
+            <div class="skills-grid reveal">
+                <div class="skill-category antigravity spotlight 3d-tilt-card" data-tilt>
+                    <h3>Backend Engineering</h3>
+                    <div class="skill-tags">
+                        <span class="skill-tag">Python</span>
+                        <span class="skill-tag">FastAPI</span>
+                        <span class="skill-tag">JWT Authentication</span>
+                        <span class="skill-tag">OAuth 2.0</span>
+                        <span class="skill-tag">SQL / SQLAlchemy</span>
+                        <span class="skill-tag">Git / GitHub</span>
+                    </div>
+                </div>
+
+                <div class="skill-category antigravity spotlight 3d-tilt-card" data-tilt>
+                    <h3>AI / Machine Learning</h3>
+                    <div class="skill-tags">
+                        <span class="skill-tag">Python</span>
+                        <span class="skill-tag">PyTorch</span>
+                        <span class="skill-tag">NLP / LLMs</span>
+                        <span class="skill-tag">RAG</span>
+                        <span class="skill-tag">Training Small Models</span>
+                    </div>
+                </div>
+
+                <div class="skill-category antigravity spotlight 3d-tilt-card" data-tilt>
+                    <h3>Data Analysis & Research</h3>
+                    <div class="skill-tags">
+                        <span class="skill-tag">Python</span>
+                        <span class="skill-tag">Pandas</span>
+                        <span class="skill-tag">Statistical Analysis</span>
+                        <span class="skill-tag">Product Analysis</span>
+                        <span class="skill-tag">Case Study Research</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- EXPERIENCE SECTION -->
+    <section id="experience">
+        <h2 class="section-title reveal">experience</h2>
+        <div class="experience-list">
+            <div class="experience-card reveal antigravity spotlight 3d-tilt-card" data-tilt>
+                <div class="experience-header">
+                    <div class="experience-role">Software Engineer</div>
+                    <div class="experience-company">Shekru Labs Pvt Ltd</div>
+                    <div class="experience-meta">04/07/2026 – Present | Pune, Maharashtra</div>
+                </div>
+                <ul class="experience-highlights">
+                    <li>Building backend features using FastAPI and advanced AI tool-calling workflows.</li>
+                    <li>Implementing authentication and authorization with JWT and OAuth 2.0.</li>
+                    <li>Designing and managing database models and queries using SQLAlchemy.</li>
+                </ul>
+            </div>
+
+            <div class="experience-card reveal antigravity spotlight 3d-tilt-card" data-tilt>
+                <div class="experience-header">
+                    <div class="experience-role">Intern</div>
+                    <div class="experience-company">Shree Chhatrapati Co-operative Credit Society</div>
+                    <div class="experience-meta">11/2024 – 01/2025 | Walchandnagar, Maharashtra</div>
+                </div>
+                <ul class="experience-highlights">
+                    <li>Validated and reconciled financial data across multi-tier member accounts.</li>
+                    <li>Prepared monthly financial statements and budget reports in Excel.</li>
+                    <li>Documented end-to-end accounting processes and internal reconciliation workflows.</li>
+                </ul>
+            </div>
+
+            <div class="experience-card reveal antigravity spotlight 3d-tilt-card" data-tilt>
+                <div class="experience-header">
+                    <div class="experience-role">Founder & Operator</div>
+                    <div class="experience-company">Dhani Agro Food Industries</div>
+                    <div class="experience-meta">09/2022 – 03/2025 | Baramati, Maharashtra</div>
+                </div>
+                <ul class="experience-highlights">
+                    <li>Managed full production cycle supplying 12 commercial hotel clients every day.</li>
+                    <li>37.5% cost reduction: Lowered per-unit cost from ₹160 to ₹100 through supply chain engineering.</li>
+                    <li>Improved profit margins by 8% (59% to 67%) through product-level cost reformulation.</li>
+                    <li>Applied live procurement optimization and risk management in daily manufacturing.</li>
+                </ul>
+            </div>
+
+            <div class="experience-card reveal antigravity spotlight 3d-tilt-card" data-tilt>
+                <div class="experience-header">
+                    <div class="experience-role">Founder & CEO</div>
+                    <div class="experience-company">ClickForAyurveda</div>
+                    <div class="experience-meta">07/2020 – 12/2021 | Pune, Maharashtra</div>
+                </div>
+                <ul class="experience-highlights">
+                    <li>Built e-commerce platform from scratch at 17, achieving 25–45% profit margins.</li>
+                    <li>Managed end-to-end operations: product sourcing, branding, digital marketing.</li>
+                    <li>Analyzed CAC vs LTV ratios, retention rates, and inventory demand forecasting.</li>
+                    <li>Made the strategic decision to close operations when unit economics became unsustainable.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ACHIEVEMENTS SECTION -->
+    <section id="achievements">
+        <h2 class="section-title reveal">achievements</h2>
+        
+        <h3 class="section-subtitle-tag reveal">academic</h3>
+        <div class="achievements-grid">
+            <div class="achievement-card reveal antigravity spotlight 3d-tilt-card" data-tilt>
+                <div class="achievement-icon">🎓</div>
+                <div class="achievement-title">MCA CET</div>
+                <div class="achievement-subtitle">90th Percentile</div>
+                <div class="achievement-meta">State level • May 2025</div>
+            </div>
+
+            <div class="achievement-card reveal antigravity spotlight 3d-tilt-card" data-tilt>
+                <div class="achievement-icon">📊</div>
+                <div class="achievement-title">MBA Entrance</div>
+                <div class="achievement-subtitle">80th Percentile</div>
+                <div class="achievement-meta">State level • May 2025</div>
+            </div>
+
+            <div class="achievement-card reveal antigravity spotlight 3d-tilt-card" data-tilt>
+                <div class="achievement-icon">🥉</div>
+                <div class="achievement-title">Cyber Olympiad</div>
+                <div class="achievement-subtitle">Bronze Medal</div>
+                <div class="achievement-meta">VPNBVM • 2014</div>
+            </div>
+
+            <div class="achievement-card reveal antigravity spotlight 3d-tilt-card" data-tilt>
+                <div class="achievement-icon">🔬</div>
+                <div class="achievement-title">Science & Cyber Olympiads</div>
+                <div class="achievement-subtitle">Consistent 4th–5th Rank</div>
+                <div class="achievement-meta">School Level</div>
+            </div>
+        </div>
+
+        <h3 class="section-subtitle-tag reveal" style="margin-top: 4.5rem;">cultural</h3>
+        <div class="achievements-grid">
+            <div class="achievement-card reveal antigravity spotlight 3d-tilt-card" data-tilt>
+                <div class="achievement-icon">🎭</div>
+                <div class="achievement-title">One Act Play & Skit</div>
+                <div class="achievement-subtitle">1st Prize (Inter-College)</div>
+                <div class="achievement-meta">Anekant Education Society, Baramati • Mar 2025</div>
+            </div>
+
+            <div class="achievement-card reveal antigravity spotlight 3d-tilt-card" data-tilt>
+                <div class="achievement-icon">🎵</div>
+                <div class="achievement-title">Music Director</div>
+                <div class="achievement-subtitle">5th Place at Purushottam</div>
+                <div class="achievement-meta">Premier Maharashtra State Theater • Oct 2024</div>
+            </div>
+
+            <div class="achievement-card reveal antigravity spotlight 3d-tilt-card" data-tilt>
+                <div class="achievement-icon">🎸</div>
+                <div class="achievement-title">Guitar Instrumental</div>
+                <div class="achievement-subtitle">3rd Prize</div>
+                <div class="achievement-meta">Swarang 2023, T.C. College, Baramati • Sep 2023</div>
+            </div>
+
+            <div class="achievement-card reveal antigravity spotlight 3d-tilt-card" data-tilt>
+                <div class="achievement-icon">🏆</div>
+                <div class="achievement-title">One Act Play</div>
+                <div class="achievement-subtitle">Karandak Competition</div>
+                <div class="achievement-meta">Shardanagar College • 2022</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- PROJECTS SECTION -->
+    <section id="projects">
+        <h2 class="section-title reveal">projects</h2>
+        <div class="projects-grid">
+            <!-- Project 1: Meridian -->
+            <div class="project-card reveal antigravity spotlight 3d-tilt-card" data-tilt data-tags="python,fastapi,sql / sqlalchemy,jwt authentication,oauth 2.0,nlp / llms,rag">
+                <div class="project-header">
+                    <h3 class="project-title">Meridian — HR Assistant Platform</h3>
+                    <div class="project-subtitle">A Role-Aware HR Backend with a Grounded LLM Agent</div>
+                </div>
+                <p class="project-description">
+                    A full employee-portal backend built with FastAPI and MySQL — JWT auth with role-based access
+                    control across six roles, leave and salary management, and an LLM-powered HR assistant that
+                    answers employee questions by calling real tools against the database instead of guessing.
+                </p>
+                <div class="project-insights">
+                    <h4>Key Details:</h4>
+                    <ul>
+                        <li>Agent is hard-constrained to never state a salary, leave count, or date unless it came from a tool call in that conversation — rejects and retries its own output if it detects a fabricated figure.</li>
+                        <li>RAG pipeline over company policy documents using sentence-transformers embeddings and a FAISS index, so policy questions are grounded in real documents, not the model's general knowledge.</li>
+                        <li>Six-role access control (super admin, HR admin, payroll manager, department manager, HOD, employee) enforced at the route level, with employees scoped to only their own records.</li>
+                        <li>JWT access + refresh token flow with bcrypt password hashing and full login history tracking.</li>
+                    </ul>
+                </div>
+                <div class="project-tech">
+                    <span class="tech-tag">Python</span>
+                    <span class="tech-tag">FastAPI</span>
+                    <span class="tech-tag">MySQL / SQLAlchemy</span>
+                    <span class="tech-tag">JWT Auth</span>
+                    <span class="tech-tag">FAISS / RAG</span>
+                </div>
+            </div>
+
+            <!-- Project 2: Expense Module -->
+            <div class="project-card reveal antigravity spotlight 3d-tilt-card" data-tilt data-tags="python,fastapi,sql / sqlalchemy">
+                <div class="project-header">
+                    <h3 class="project-title">Expense & Budget Tracking Module</h3>
+                    <div class="project-subtitle">Department-Level Spend Control for Meridian</div>
+                </div>
+                <p class="project-description">
+                    An expense and budgeting extension for the Meridian HR platform — tracks operational and
+                    employee-related expenses against department budgets, with monthly, quarterly, and yearly
+                    budget limits and a reimbursement workflow.
+                </p>
+                <div class="project-insights">
+                    <h4>Key Details:</h4>
+                    <ul>
+                        <li>Expense categories split by type (operational vs. employee-related), each with its own recurring monthly budget.</li>
+                        <li>Budgets configurable per period — monthly, quarterly, or yearly — against a category and year.</li>
+                        <li>Full expense lifecycle tracked: who recorded it, vendor, bill number, and reimbursement status with timestamps.</li>
+                    </ul>
+                </div>
+                <div class="project-tech">
+                    <span class="tech-tag">Python</span>
+                    <span class="tech-tag">FastAPI</span>
+                    <span class="tech-tag">MySQL / SQLAlchemy</span>
+                </div>
+            </div>
+
+            <!-- Project 3: Jarvis Voice Assistant -->
+            <div class="project-card reveal antigravity spotlight 3d-tilt-card" data-tilt data-tags="python,nlp / llms,rag">
+                <div class="project-header">
+                    <h3 class="project-title">Jarvis — Real Time Voice Assistant</h3>
+                    <div class="project-subtitle">A Local Voice Agent with a Live Audio Reactive HUD</div>
+                </div>
+                <p class="project-description">
+                    A desktop voice assistant that listens, reasons through an LLM tool calling loop, and speaks
+                    back using fully offline text to speech, while a browser based HUD animates a 3D blob in sync
+                    with the assistant's actual voice output in real time.
+                </p>
+                <div class="project-insights">
+                    <h4>Key Details:</h4>
+                    <ul>
+                        <li>Audio is streamed to speakers in small chunks rather than played in one call, measuring chunk loudness and pushing via WebSockets to the 3D HUD in real time.</li>
+                        <li>Tool calling agent loop resolves multi-step requests and is constrained in system prompts to refuse destructive actions.</li>
+                        <li>Offline text-to-speech via Piper, requiring zero external API network requests and zero per-call costs.</li>
+                        <li>Plain-text persistent memory file loaded at startup without code changes.</li>
+                    </ul>
+                </div>
+                <div class="project-tech">
+                    <span class="tech-tag">Python</span>
+                    <span class="tech-tag">LLM Tool Calling</span>
+                    <span class="tech-tag">WebSockets</span>
+                    <span class="tech-tag">Offline TTS</span>
+                </div>
+            </div>
+
+            <!-- Project 4: Live GPT -->
+            <div class="project-card reveal antigravity spotlight 3d-tilt-card" data-tilt data-tags="python,pytorch,nlp / llms,transformers,training small models">
+                <div class="project-header">
+                    <h3 class="project-title">Live GPT — Transformer From Scratch</h3>
+                    <div class="project-subtitle">Watching a Language Model Learn, Token by Token</div>
+                </div>
+                <p class="project-description">
+                    Built a small GPT-style transformer in PyTorch from the ground up — embeddings, multi-head causal
+                    self-attention, feed-forward blocks, and a full training loop — with a live terminal dashboard that
+                    streams the model's internals (loss, gradient norm, attention weights, next-token probabilities)
+                    in real time as it trains.
+                </p>
+                <div class="project-insights">
+                    <h4>Key Details:</h4>
+                    <ul>
+                        <li>Implemented causal self-attention and multi-head attention manually, without high-level abstractions.</li>
+                        <li>Built a character-level tokenizer and training pipeline from scratch.</li>
+                        <li>Instrumented every layer to print live attention weights, embeddings, and gradients during training.</li>
+                        <li>Used the model to generate new text after training on a small custom corpus.</li>
+                    </ul>
+                </div>
+                <div class="project-tech">
+                    <span class="tech-tag">Python</span>
+                    <span class="tech-tag">PyTorch</span>
+                    <span class="tech-tag">NLP / LLMs</span>
+                    <span class="tech-tag">Transformers</span>
+                </div>
+            </div>
+
+            <!-- Project 5: Aligned to Whom? -->
+            <div class="project-card reveal antigravity spotlight 3d-tilt-card" data-tilt data-tags="philosophy,ai alignment,political philosophy">
+                <div class="project-header">
+                    <h3 class="project-title">Aligned to Whom?</h3>
+                    <div class="project-subtitle">Rejecting Moral Authority in the Age of Artificial Intelligence</div>
+                </div>
+                <p class="project-description">
+                    A philosophy paper arguing that the dominant AI alignment paradigm rests on a flawed assumption:
+                    that human values are stable, coherent, and extractable into code. Drawing on cross-cultural
+                    psychology, neuroscience, phenomenology, and political philosophy, it argues that encoding a single
+                    moral framework into AI risks freezing one generation's contested worldview into permanent,
+                    globally-scaled infrastructure.
+                </p>
+                <div class="project-insights">
+                    <h4>Key Ideas:</h4>
+                    <ul>
+                        <li>Shows human morality is culturally contingent and only partially accessible even to those who hold it.</li>
+                        <li>Proposes "Sovereign Proceduralism," distinguishing defensive alignment (preventing clear harms like violence, fraud, coercion) from ideological alignment.</li>
+                        <li>Argues AI should enforce the former and actively avoid the latter, staying transparent about uncertainty and hospitable to disagreement.</li>
+                        <li>Concludes AI's role is to remain an honest participant in human moral conversation, not to serve as its arbiter.</li>
+                    </ul>
+                </div>
+                <div class="project-tech">
+                    <span class="tech-tag">Philosophy</span>
+                    <span class="tech-tag">AI Alignment</span>
+                    <span class="tech-tag">Political Philosophy</span>
+                </div>
+                <a href="https://medium.com/@nimbalkaryashraj53/aligned-to-whom-rejecting-moral-authority-in-the-age-of-artificial-intelligence-a792961affa7"
+                    target="_blank" rel="noopener noreferrer" class="project-link">
+                    Read Full Analysis
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                        <polyline points="15 3 21 3 21 9"></polyline>
+                        <line x1="10" y1="14" x2="21" y2="3"></line>
+                    </svg>
+                </a>
+            </div>
+
+            <!-- Project 6: Spotify Algorithm Study -->
+            <div class="project-card reveal antigravity spotlight 3d-tilt-card" data-tilt data-tags="python,pandas,statistical analysis,product analysis,case study research">
+                <div class="project-header">
+                    <h3 class="project-title">Spotify Algorithm Analysis</h3>
+                    <div class="project-subtitle">Why You Can't Discover New Music</div>
+                </div>
+                <p class="project-description">
+                    I tracked Spotify's recommendation algorithm for 14 days and discovered the 'Recency Trap'—where 69%
+                    of exploration sessions revert to recently played tracks within just three recommendations.
+                </p>
+                <div class="project-insights">
+                    <h4>Key Insights:</h4>
+                    <ul>
+                        <li>Identified 4 repeatable algorithmic patterns limiting music discovery.</li>
+                        <li>Applied Wilson Confidence Intervals for statistical validation.</li>
+                        <li>Proposed technical product improvements for long-term user engagement.</li>
+                    </ul>
+                </div>
+                <div class="project-tech">
+                    <span class="tech-tag">Python</span>
+                    <span class="tech-tag">Statistical Analysis</span>
+                    <span class="tech-tag">Product Analysis</span>
+                </div>
+                <a href="https://medium.com/@nimbalkaryashraj53/i-tracked-spotify-for-14-days-heres-why-you-can-t-discover-new-music-cde69cad9cf8"
+                    target="_blank" rel="noopener noreferrer" class="project-link">
+                    Read Full Analysis
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                        <polyline points="15 3 21 3 21 9"></polyline>
+                        <line x1="10" y1="14" x2="21" y2="3"></line>
+                    </svg>
+                </a>
+            </div>
+
+            <!-- Project 7: Swiggy Expansion -->
+            <div class="project-card reveal antigravity spotlight 3d-tilt-card" data-tilt data-tags="pestle analysis,swot,aarrr funnel,unit economics,product analysis,case study research">
+                <div class="project-header">
+                    <h3 class="project-title">Swiggy Tier-2 Expansion</h3>
+                    <div class="project-subtitle">The Blueprint for Smaller Cities</div>
+                </div>
+                <p class="project-description">
+                    Analyzed why 68% of Swiggy's pilot launches in Tier-2 cities saw retention rates drop below 20%,
+                    revealing a structural problem with the Tier-1 playbook.
+                </p>
+                <div class="project-insights">
+                    <h4>Key Insights:</h4>
+                    <ul>
+                        <li>Discovered negative contribution margin of -₹6.5 per order.</li>
+                        <li>Designed 90-day roadmap to flip unit economics positive.</li>
+                        <li>Proposed 'Swiggy One Lite' subscription model for Tier-2 markets.</li>
+                    </ul>
+                </div>
+                <div class="project-tech">
+                    <span class="tech-tag">PESTLE Analysis</span>
+                    <span class="tech-tag">SWOT</span>
+                    <span class="tech-tag">AARRR Funnel</span>
+                    <span class="tech-tag">Unit Economics</span>
+                </div>
+                <a href="https://medium.com/@nimbalkaryashraj53/case-study-01-swiggys-tier-2-city-expansion-strategy-87f89f90fd11"
+                    target="_blank" rel="noopener noreferrer" class="project-link">
+                    Read Full Analysis
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                        <polyline points="15 3 21 3 21 9"></polyline>
+                        <line x1="10" y1="14" x2="21" y2="3"></line>
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- CONTACT SECTION -->
+    <section id="contact">
+        <h2 class="section-title reveal">get in touch</h2>
+        <div class="contact-content reveal spotlight">
+            <p>
+                I'm looking for roles in Backend Engineering or Software Engineering where I can build reliable APIs
+                and systems with <strong>FastAPI, JWT, and OAuth 2.0</strong> — and keep growing into AI/ML along the way.
+            </p>
+            <p>
+                Whether you want to discuss a project, explore collaboration opportunities, or just chat about
+                transformers and backend architecture, I'd love to hear from you.
+            </p>
+            <div class="social-links">
+                <a href="mailto:yashraj241103@gmail.com" class="social-link antigravity" target="_blank" rel="noopener noreferrer" title="Email me" aria-label="Email">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                        <polyline points="22,6 12,13 2,6"></polyline>
+                    </svg>
+                </a>
+                <a href="https://github.com/Yashraj-Arch" class="social-link antigravity" target="_blank" rel="noopener noreferrer" title="GitHub" aria-label="GitHub">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+                    </svg>
+                </a>
+                <a href="https://www.linkedin.com/in/yashraj-arch" class="social-link antigravity" target="_blank" rel="noopener noreferrer" title="LinkedIn" aria-label="LinkedIn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
+                        <rect x="2" y="9" width="4" height="12"></rect>
+                        <circle cx="4" cy="4" r="2"></circle>
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer>
+        <p>Built with HTML, CSS, JavaScript & Three.js 3D • Crafted by Yashraj Nimbalkar</p>
+        <p style="margin-top: 0.5rem; font-size: 0.82rem; opacity: 0.7;">© 2026 All rights reserved.</p>
+    </footer>
+
+    <!-- Back to top button -->
+    <button class="back-to-top" id="backToTop" title="Back to top" aria-label="Back to top">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="19" x2="12" y2="5"></line>
+            <polyline points="5 12 12 5 19 12"></polyline>
+        </svg>
+    </button>
+
+    <script src="app.js"></script>
+</body>
+</html>
