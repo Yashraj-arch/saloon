@@ -1,6 +1,11 @@
 import os
+<<<<<<< Updated upstream
 import urllib.parse
 from typing import List, Optional
+=======
+from typing import Optional
+from urllib.parse import quote_plus
+>>>>>>> Stashed changes
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
@@ -22,7 +27,11 @@ class Settings(BaseSettings):
 
     # MySQL Database Config (loaded from .env)
     MYSQL_USER: str = "root"
+<<<<<<< Updated upstream
     MYSQL_PASSWORD: str = ""
+=======
+    MYSQL_PASSWORD: str = "Kiran@8196"
+>>>>>>> Stashed changes
     MYSQL_HOST: str = "127.0.0.1"
     MYSQL_PORT: int = 3306
     MYSQL_DB: str = "saloon_db"
@@ -46,9 +55,15 @@ class Settings(BaseSettings):
     def get_database_url(self) -> str:
         if self.DATABASE_URL:
             return self.DATABASE_URL
+<<<<<<< Updated upstream
         # URL encode password to handle special characters such as '@', ':', '/' safely
         encoded_password = urllib.parse.quote_plus(self.MYSQL_PASSWORD) if self.MYSQL_PASSWORD else ""
         pwd_part = f":{encoded_password}" if encoded_password else ""
         return f"mysql+aiomysql://{self.MYSQL_USER}{pwd_part}@{self.MYSQL_HOST}:{self.MYSQL_PORT}/{self.MYSQL_DB}"
+=======
+        # default to async MySQL with URL-encoded password (handling '@', ':', etc.)
+        encoded_pwd = f":{quote_plus(self.MYSQL_PASSWORD)}" if self.MYSQL_PASSWORD else ""
+        return f"mysql+aiomysql://{self.MYSQL_USER}{encoded_pwd}@{self.MYSQL_HOST}:{self.MYSQL_PORT}/{self.MYSQL_DB}"
+>>>>>>> Stashed changes
 
 settings = Settings()
