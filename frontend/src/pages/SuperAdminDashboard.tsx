@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Building2, Plus, CreditCard, Lock, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Shield, Building2, Plus, CreditCard, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 import type { Tenant } from '../types';
 import { api } from '../services/api';
 import { BentoCard } from '../components/bento/BentoCard';
@@ -97,16 +97,6 @@ export const SuperAdminDashboard: React.FC = () => {
           <Plus className="w-4 h-4" />
           Provision New Salon
         </button>
-      </div>
-
-      {/* Privacy Notice Banner */}
-      <div className="p-4 rounded-2xl bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-500/20 flex items-start gap-3">
-        <Lock className="w-5 h-5 text-sky-600 dark:text-sky-400 mt-0.5 flex-shrink-0" />
-        <div className="text-xs text-sky-900 dark:text-sky-200 leading-relaxed">
-          <strong className="text-slate-900 dark:text-white block font-bold mb-0.5">Privacy & Strict Revenue Isolation Enforced:</strong>
-          As the platform Super Admin, you manage salon database access and subscription licenses with each salon's name.
-          In accordance with multi-tenant privacy rules, <strong>individual salon revenue totals, customer details, and financial ledgers are completely hidden from this portal</strong> and can only be accessed by the respective Salon Owner.
-        </div>
       </div>
 
       {msg && (

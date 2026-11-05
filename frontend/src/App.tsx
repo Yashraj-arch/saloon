@@ -5,6 +5,7 @@ import { Navbar } from './components/layout/Navbar';
 import { SuperAdminDashboard } from './pages/SuperAdminDashboard';
 import { SalonOwnerDashboard } from './pages/SalonOwnerDashboard';
 import { StaffPOSDashboard } from './pages/StaffPOSDashboard';
+import { RulesPage } from './pages/RulesPage';
 import { ThemeProvider } from './context/ThemeContext';
 import { Sparkles, Shield, Crown, Scissors, ArrowRight } from 'lucide-react';
 
@@ -13,6 +14,7 @@ const AppContent: React.FC = () => {
   const [currentRole, setCurrentRole] = useState<Role>('SALON_OWNER');
   const [currentUserEmail, setCurrentUserEmail] = useState<string>('owner@luxeaura.com');
   const [currentSalonName, setCurrentSalonName] = useState<string | undefined>('Luxe Aura Hair & Spa');
+  const [currentNav, setCurrentNav] = useState<'dashboard' | 'rules'>('dashboard');
 
   // Manual login modal state
   const [emailInput, setEmailInput] = useState('');
@@ -31,6 +33,7 @@ const AppContent: React.FC = () => {
       setCurrentRole(res.role);
       setCurrentUserEmail(res.email);
       setCurrentSalonName(res.salon_name);
+      setCurrentNav('dashboard');
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Login failed. Please verify credentials.';
       setLoginError(errorMsg);
@@ -55,7 +58,7 @@ const AppContent: React.FC = () => {
     setToken(null);
   };
 
-  // Initial auto-login to Demo Salon Owner for immediate WOW presentation
+  // Initial auto-login to Demo Salon Owner for immediate presentation
   useEffect(() => {
     const initApp = async () => {
       try {
@@ -66,6 +69,13 @@ const AppContent: React.FC = () => {
     };
     initApp();
   }, []);
+
+  // Ensure staff can never view rules even if state lingered
+  useEffect(() => {
+    if (currentRole === 'STAFF' && currentNav === 'rules') {
+      setCurrentNav('dashboard');
+    }
+  }, [currentRole, currentNav]);
 
   return (
     <div className="min-h-screen bg-[var(--bento-bg)] text-[var(--text-main)] flex flex-col font-['Plus_Jakarta_Sans',sans-serif] transition-colors duration-300">
@@ -79,14 +89,21 @@ const AppContent: React.FC = () => {
             currentRole={currentRole}
             currentUserEmail={currentUserEmail}
             currentSalonName={currentSalonName}
-            onSwitchPersona={handleSwitchPersona}
+            currentNav={currentNav}
+            onNavigate={(nav) => setCurrentNav(nav)}
             onLogout={handleLogout}
           />
 
           <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
-            {currentRole === 'SUPER_ADMIN' && <SuperAdminDashboard />}
-            {currentRole === 'SALON_OWNER' && <SalonOwnerDashboard />}
-            {currentRole === 'STAFF' && <StaffPOSDashboard />}
+            {currentNav === 'rules' ? (
+              <RulesPage role={currentRole} />
+            ) : (
+              <>
+                {currentRole === 'SUPER_ADMIN' && <SuperAdminDashboard />}
+                {currentRole === 'SALON_OWNER' && <SalonOwnerDashboard />}
+                {currentRole === 'STAFF' && <StaffPOSDashboard />}
+              </>
+            )}
           </main>
         </>
       ) : (
@@ -99,7 +116,7 @@ const AppContent: React.FC = () => {
                   <Sparkles className="w-7 h-7 text-sky-600 dark:text-sky-400" />
                 </div>
               </div>
-              <h1 className="text-2xl font-black text-[var(--text-main)] font-['Outfit']">LuxeSalon CRM</h1>
+              <h1 className="text-2xl font-black text-[var(--text-main)] font-['Outfit']">Lux</h1>
               <p className="text-xs text-[var(--text-muted)] mt-1">Multi-Tenant Salon SaaS Platform</p>
             </div>
 
@@ -183,7 +200,7 @@ const AppContent: React.FC = () => {
                   title="Username: staff | Password: staff"
                 >
                   <Scissors className="w-4 h-4 mx-auto mb-1 text-emerald-600 dark:text-emerald-400" />
-                  Staff POS
+                  Staff
                   <span className="block text-[9px] font-normal opacity-75 mt-0.5 font-mono">staff / staff</span>
                 </button>
               </div>
@@ -194,7 +211,7 @@ const AppContent: React.FC = () => {
 
       {/* Footer */}
       <footer className="w-full py-4 border-t border-[var(--bento-card-border)] text-center text-xs text-[var(--text-muted)] relative z-10 transition-colors duration-300">
-        LuxeSalon Multi-Tenant CRM SaaS • Nordic Ice & Porcelain Minimalist • MySQL 8.0 & FastAPI
+        Lux Multi-Tenant CRM SaaS • Nordic Ice & Porcelain Minimalist • MySQL 8.0 & FastAPI
       </footer>
     </div>
   );

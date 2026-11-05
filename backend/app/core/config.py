@@ -4,7 +4,7 @@ from typing import List, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "LuxeSalon Multi-Tenant CRM SaaS"
+    PROJECT_NAME: str = "Lux Multi-Tenant CRM SaaS"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str = "super_secret_jwt_key_salon_crm_2026_x92837482_luxe_secure"
     ALGORITHM: str = "HS256"

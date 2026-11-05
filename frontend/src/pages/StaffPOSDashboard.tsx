@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Scissors,
   UserPlus,
@@ -8,8 +8,13 @@ import {
   Plus,
   AlertTriangle,
   ShoppingBag,
-  Printer
+  Printer,
+  Image as ImageIcon,
+  FileText,
+  X
 } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import type { Customer, Service, Bill, SelectedOption } from '../types';
 import { api } from '../services/api';
 
@@ -44,6 +49,102 @@ export const StaffPOSDashboard: React.FC = () => {
     selectedOptions: SelectedOption[];
   }[]>([]);
   const [submittingBill, setSubmittingBill] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const receiptRef = useRef<HTMLDivElement>(null);
+
+  const handlePrint = () => {
+    if (!receiptRef.current) return;
+    const printWindow = window.open('', '_blank', 'width=450,height=650');
+    if (printWindow) {
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Lux Invoice - ${receiptBill?.invoice_number || ''}</title>
+            <style>
+              body {
+                font-family: 'Courier New', Courier, monospace, sans-serif;
+                padding: 24px;
+                color: #0f172a;
+                background: #ffffff;
+                margin: 0;
+              }
+              .receipt-container {
+                max-width: 320px;
+                margin: 0 auto;
+              }
+              @media print {
+                body { padding: 0; }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="receipt-container">
+              ${receiptRef.current.innerHTML}
+            </div>
+            <script>
+              window.onload = function() {
+                window.focus();
+                window.print();
+                setTimeout(function() { window.close(); }, 500);
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    } else {
+      window.print();
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!receiptRef.current || !receiptBill) return;
+    try {
+      setIsExporting(true);
+      const canvas = await html2canvas(receiptRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = 80;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: [imgWidth, Math.max(120, imgHeight + 10)]
+      });
+      pdf.addImage(imgData, 'PNG', 0, 5, imgWidth, imgHeight);
+      pdf.save(`Lux-Invoice-${receiptBill.invoice_number}.pdf`);
+    } catch (err) {
+      console.error('PDF export error:', err);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleDownloadImage = async () => {
+    if (!receiptRef.current || !receiptBill) return;
+    try {
+      setIsExporting(true);
+      const canvas = await html2canvas(receiptRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      });
+      const link = document.createElement('a');
+      link.download = `Lux-Invoice-${receiptBill.invoice_number}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      console.error('Image export error:', err);
+      alert('Failed to generate image. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -191,7 +292,7 @@ export const StaffPOSDashboard: React.FC = () => {
               <Scissors className="w-5 h-5" />
             </span>
             <h1 className="text-2xl font-black text-[var(--text-main)] font-['Outfit']">
-              Staff Front Desk & POS Terminal
+              Staff
             </h1>
           </div>
           <p className="text-xs text-[var(--text-muted)] mt-1">
@@ -464,7 +565,7 @@ export const StaffPOSDashboard: React.FC = () => {
                 Customer Directory & Client Profiles
               </h2>
               <p className="text-xs text-[var(--text-muted)]">
-                Staff can manage client details. Soft-deleted clients are safely archived and require an audit reason.
+                Manage client profiles, contact numbers, and preferences.
               </p>
             </div>
 
@@ -728,57 +829,114 @@ export const StaffPOSDashboard: React.FC = () => {
       {/* Invoice Receipt Modal */}
       {receiptBill && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="w-full max-w-sm bg-white text-slate-900 rounded-3xl p-6 shadow-2xl font-mono text-xs border border-slate-200">
-            <div className="text-center pb-4 border-b border-dashed border-slate-300">
-              <h3 className="text-lg font-black tracking-tight font-sans text-slate-900">
-                LUXE SALON & SPA
-              </h3>
-              <p className="text-[11px] text-slate-500 font-sans">Official Client Invoice</p>
-              <p className="text-[10px] text-slate-400 mt-1">{receiptBill.invoice_number}</p>
+          <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-white/10">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100 dark:border-white/10">
+              <span className="text-xs font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400">
+                Official Invoice
+              </span>
+              <button
+                onClick={() => setReceiptBill(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
-            <div className="py-3 border-b border-dashed border-slate-300 space-y-1">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Client:</span>
-                <span className="font-bold">{receiptBill.customer_name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Method:</span>
-                <span>{receiptBill.payment_method}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Date:</span>
-                <span>{new Date(receiptBill.billed_at).toLocaleString()}</span>
-              </div>
-            </div>
-
-            {/* Line items */}
-            <div className="py-3 border-b border-dashed border-slate-300 space-y-2">
-              {receiptBill.items.map((item) => (
-                <div key={item.id} className="flex justify-between">
-                  <span>{item.service_name}</span>
-                  <span className="font-bold">₹{Number(item.final_price)}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="pt-3 space-y-1">
-              <div className="flex justify-between font-bold text-sm">
-                <span>TOTAL:</span>
-                <span className="text-emerald-700">₹{Number(receiptBill.total_amount).toLocaleString()}</span>
-              </div>
-            </div>
-
-            <div className="text-center pt-6 text-[10px] text-slate-400 font-sans">
-              Thank you for choosing LuxeSalon!
-            </div>
-
-            <button
-              onClick={() => setReceiptBill(null)}
-              className="w-full mt-4 py-2 bg-slate-900 text-white rounded-xl font-bold font-sans text-xs hover:bg-slate-800 transition"
+            {/* Printable & Exportable Voucher Slip Container */}
+            <div
+              ref={receiptRef}
+              className="p-5 bg-white text-slate-900 rounded-2xl border border-dashed border-slate-300 font-mono text-xs shadow-inner"
             >
-              Close Receipt
-            </button>
+              <div className="text-center pb-4 border-b border-dashed border-slate-300">
+                <div className="flex items-center justify-center gap-1.5 mb-1">
+                  <span className="w-2.5 h-2.5 rounded-full bg-sky-600 inline-block"></span>
+                  <h3 className="text-2xl font-black tracking-widest font-sans text-slate-900">
+                    LUX
+                  </h3>
+                </div>
+                <p className="text-[11px] text-slate-500 font-sans tracking-wide">Client Invoice Receipt</p>
+                <p className="text-[10px] text-slate-400 mt-1 font-mono">{receiptBill.invoice_number}</p>
+              </div>
+
+              <div className="py-3 border-b border-dashed border-slate-300 space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Client:</span>
+                  <span className="font-bold text-slate-900">{receiptBill.customer_name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Method:</span>
+                  <span className="font-semibold text-slate-800">{receiptBill.payment_method}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Date:</span>
+                  <span className="text-slate-700">{new Date(receiptBill.billed_at).toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* Line items */}
+              <div className="py-3 border-b border-dashed border-slate-300 space-y-2">
+                <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Services Rendered</div>
+                {receiptBill.items.map((item) => (
+                  <div key={item.id} className="flex justify-between items-start">
+                    <span className="text-slate-800 pr-2">{item.service_name}</span>
+                    <span className="font-bold text-slate-900 whitespace-nowrap">₹{Number(item.final_price).toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-3 space-y-1">
+                <div className="flex justify-between font-bold text-sm">
+                  <span className="text-slate-900">TOTAL PAID:</span>
+                  <span className="text-emerald-700 font-black">₹{Number(receiptBill.total_amount).toLocaleString()}</span>
+                </div>
+              </div>
+
+              <div className="text-center pt-5 text-[10px] text-slate-400 font-sans">
+                Thank you for choosing Lux!
+              </div>
+            </div>
+
+            {/* Action Buttons: Print, PDF Download, Image Download */}
+            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/10 space-y-2 font-sans">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={handleDownloadPDF}
+                  disabled={isExporting}
+                  className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-600/25 transition disabled:opacity-50 cursor-pointer"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  {isExporting ? 'Exporting...' : 'Download PDF'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadImage}
+                  disabled={isExporting}
+                  className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs shadow-md shadow-violet-600/25 transition disabled:opacity-50 cursor-pointer"
+                >
+                  <ImageIcon className="w-3.5 h-3.5" />
+                  {isExporting ? 'Exporting...' : 'Download Image'}
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-200 dark:text-slate-900 text-white font-bold text-xs shadow-sm transition cursor-pointer"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                Print Receipt
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setReceiptBill(null)}
+                className="w-full py-2 text-center text-xs font-semibold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition"
+              >
+                Close Preview
+              </button>
+            </div>
           </div>
         </div>
       )}

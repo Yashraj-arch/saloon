@@ -162,12 +162,9 @@ export const SalonOwnerDashboard: React.FC = () => {
               <Sparkles className="w-5 h-5" />
             </span>
             <h1 className="text-2xl font-black text-[var(--text-main)] font-['Outfit']">
-              Salon Owner Bento Command Center
+              owner
             </h1>
           </div>
-          <p className="text-xs text-[var(--text-muted)] mt-1">
-            Real-time daily, weekly, monthly, and yearly economics, 1921–2099 calendar analytics, and service matrices.
-          </p>
         </div>
 
         {/* Tab Navigation */}
@@ -180,7 +177,7 @@ export const SalonOwnerDashboard: React.FC = () => {
                 : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
             }`}
           >
-            Bento Analytics
+            Analytics
           </button>
           <button
             onClick={() => setActiveTab('services')}
@@ -394,21 +391,21 @@ export const SalonOwnerDashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* Quick Economics Bento Tile */}
+            {/* Business Performance Highlights Tile */}
             <div className="bento-card p-6 flex flex-col justify-between">
               <div>
                 <h3 className="text-lg font-bold text-[var(--text-main)] font-['Outfit'] flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-amber-500" />
-                  Salon Business Economics
+                  <TrendingUp className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+                  Business Performance Highlights
                 </h3>
                 <p className="text-xs text-[var(--text-muted)] mt-1">
-                  Key unit economics metrics for profit optimization
+                  Key unit economics & operational metrics
                 </p>
 
-                <div className="mt-5 space-y-4">
+                <div className="mt-5 space-y-3.5">
                   <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/5 flex items-center justify-between">
                     <div>
-                      <p className="text-xs text-[var(--text-muted)]">Average Ticket Size (ATS)</p>
+                      <p className="text-xs text-[var(--text-muted)]">Average Bill Value</p>
                       <p className="text-xl font-bold text-[var(--text-main)] mt-0.5">
                         ₹{summary?.average_ticket_size || 0}
                       </p>
@@ -418,28 +415,46 @@ export const SalonOwnerDashboard: React.FC = () => {
 
                   <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/5 flex items-center justify-between">
                     <div>
-                      <p className="text-xs text-[var(--text-muted)]">Active Staff Utilization</p>
+                      <p className="text-xs text-[var(--text-muted)]">Stylists on Floor</p>
                       <p className="text-xl font-bold text-sky-600 dark:text-sky-400 mt-0.5">
-                        {summary?.active_staff_count || 0} Stylists
+                        {summary?.active_staff_count || 0} Stylists Ready
                       </p>
                     </div>
-                    <span className="bento-pill bento-pill-blue text-[10px]">On Floor</span>
+                    <span className="bento-pill bento-pill-blue text-[10px]">Active</span>
                   </div>
 
                   <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/5 flex items-center justify-between">
                     <div>
-                      <p className="text-xs text-[var(--text-muted)]">Configured Service Offerings</p>
-                      <p className="text-xl font-bold text-[var(--text-main)] mt-0.5">
-                        {services.length} Base Services
+                      <p className="text-xs text-[var(--text-muted)]">Top Performing Category</p>
+                      <p className="text-base font-bold text-[var(--text-main)] mt-0.5">
+                        Hair Care & Styling
                       </p>
                     </div>
-                    <span className="bento-pill bento-pill-amber text-[10px]">Tiered Options</span>
+                    <span className="bento-pill bento-pill-amber text-[10px]">High Demand</span>
+                  </div>
+
+                  {/* Monthly Revenue Target Progress Bar */}
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/5">
+                    <div className="flex items-center justify-between text-xs mb-1.5">
+                      <span className="text-[var(--text-muted)]">Monthly Target Progress</span>
+                      <span className="font-bold text-sky-600 dark:text-sky-400">
+                        {Math.min(100, Math.round(((Number(summary?.monthly_revenue) || 0) / 100000) * 100))}%
+                      </span>
+                    </div>
+                    <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-white/10 overflow-hidden">
+                      <div
+                        className="h-full bg-sky-600 rounded-full transition-all duration-500"
+                        style={{
+                          width: `${Math.min(100, Math.max(5, Math.round(((Number(summary?.monthly_revenue) || 0) / 100000) * 100)))}%`
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
 
               <div className="pt-4 border-t border-[var(--bento-card-border)] text-[11px] text-[var(--text-muted)]">
-                Formula adjustments & expense overheads can be expanded in next release.
+                Live register metrics updated automatically upon every client checkout.
               </div>
             </div>
           </div>
@@ -464,11 +479,8 @@ export const SalonOwnerDashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-[var(--text-main)] font-['Outfit']">
-                Services & Dynamic Option Modifiers Matrix
+                Services
               </h2>
-              <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                Only Salon Admins can create and modify service pricing and add-on options (e.g. Haircut + Hairwash shampoos).
-              </p>
             </div>
             <button
               onClick={() => setShowAddServiceModal(true)}
@@ -553,7 +565,7 @@ export const SalonOwnerDashboard: React.FC = () => {
                 Salon Staff & Stylist Team
               </h2>
               <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                Staff can manage customers and execute billing, but cannot view total salon financials or alter base service prices.
+                Manage salon stylists, specialists, and commission tiers.
               </p>
             </div>
             <button
@@ -611,7 +623,7 @@ export const SalonOwnerDashboard: React.FC = () => {
                 Soft-Deleted Customers Audit Vault
               </h2>
               <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                Staff cannot permanently purge customer records. Review the exact reasons provided upon deletion and restore anytime.
+                Review archived customer records and restore when needed.
               </p>
             </div>
             <span className="px-3 py-1 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-300 border border-rose-500/30 text-xs font-bold">

@@ -82,9 +82,6 @@ export const CalendarBentoWidget: React.FC<CalendarBentoWidgetProps> = ({
             <div>
               <h3 className="text-xl font-bold tracking-tight text-[var(--text-main)] flex items-center gap-2">
                 Revenue Calendar
-                <span className="text-xs px-2 py-0.5 rounded-full bento-pill-blue font-medium">
-                  1921 - 2099
-                </span>
               </h3>
               <p className="text-xs text-[var(--text-muted)]">
                 Click any day to inspect itemized bills, staff performance & modifiers
