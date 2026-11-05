@@ -187,3 +187,4 @@ export const RulesPage: React.FC<RulesPageProps> = ({ role }) => {
     </div>
   );
 };
+
