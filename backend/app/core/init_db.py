@@ -15,7 +15,7 @@ async def init_db_data(session: AsyncSession):
     if not existing_admin:
         super_admin = User(
             email="superadmin@luxesaloon.com",
-            hashed_password=get_password_hash("SuperAdmin@123"),
+            hashed_password=get_password_hash("superadmin"),
             full_name="Alex Vance (Platform Owner)",
             role="SUPER_ADMIN",
             phone="+1 555-0199",
@@ -49,7 +49,7 @@ async def init_db_data(session: AsyncSession):
         owner = User(
             tenant_id=tenant.id,
             email="owner@luxeaura.com",
-            hashed_password=get_password_hash("Owner@123"),
+            hashed_password=get_password_hash("owner"),
             full_name="Sophia Martinez",
             role="SALON_OWNER",
             phone="+91 98765 43210",
@@ -62,7 +62,7 @@ async def init_db_data(session: AsyncSession):
         staff1 = User(
             tenant_id=tenant.id,
             email="staff@luxeaura.com",
-            hashed_password=get_password_hash("Staff@123"),
+            hashed_password=get_password_hash("staff"),
             full_name="Marcus Reed (Master Stylist)",
             role="STAFF",
             phone="+91 98765 43211",
@@ -72,7 +72,7 @@ async def init_db_data(session: AsyncSession):
         staff2 = User(
             tenant_id=tenant.id,
             email="elena@luxeaura.com",
-            hashed_password=get_password_hash("Staff@123"),
+            hashed_password=get_password_hash("staff"),
             full_name="Elena Rostova (Colorist & Skin)",
             role="STAFF",
             phone="+91 98765 43212",

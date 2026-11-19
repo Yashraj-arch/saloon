@@ -146,6 +146,32 @@ Developed 8 comprehensive automated test suites in `backend/tests/test_salon_api
 | `frontend/src/App.tsx` | Bento Grid UI with role-based view switching and real-time drilldowns |
 | `.gitignore` | Exclusion rules for `.env`, `saloon.db`, and build artifacts |
 
+
+---
+
+## 🎨 Phase 1.1: Nordic Ice & Porcelain Minimalist Theme Overhaul (Light Blue, White & Dark Mode)
+**Timestamp:** October 30, 2026 – 18:00 IST  
+**Focus:** Visual craftsmanship, Anti-Slop design compliance, light blue/white palette, and robust dark mode support.
+
+### Key Enhancements:
+1. **Design System & Tokens (`frontend/src/index.css`)**:
+   - Implemented light mode tokens: Crisp porcelain white (`#ffffff` / `#f8fafc`), subtle ice-wash borders (`#e2e8f0`), sky blue accents (`#0284c7`), and dark slate typography (`#0f172a`).
+   - Implemented dark mode tokens: Midnight slate (`#080c14` / `#0f172a`), arctic sky highlights (`#38bdf8`), and high-contrast text (`#f8fafc`).
+   - Configured `@custom-variant dark (&:where(.dark, .dark *, [data-theme=dark], [data-theme=dark] *))` for full Tailwind CSS v4 selector support.
+2. **Persistent Theme Engine (`frontend/src/context/ThemeContext.tsx`)**:
+   - Created React Context with `localStorage` (`salon_theme`) persistence and dual `data-theme` + `class="dark"` synchronization on `<html>`.
+   - Added interactive Sun/Moon theme switcher button to the top navigation bar.
+3. **Dashboards & Components Restyled**:
+   - `BentoCard.tsx`: Light blue border keylines, subtle shadows, and standout `variant="accent"` with high-contrast text.
+   - `SalonOwnerDashboard.tsx`: Recharts trend chart upgraded with `#0284c7` sky-blue stroke and gradient; Add Service and Add Staff modals refactored with theme-aware cards and inputs.
+   - `StaffPOSDashboard.tsx`: Checkout cart, modifier chips, and client CRM directory restyled with sky blue actions.
+   - `SuperAdminDashboard.tsx`: Tenant provisioning modals, platform KPIs, and registry table restyled with sky blue tokens.
+   - `CalendarBentoWidget.tsx` & `DayDrilldownDrawer.tsx`: Themed 1921–2099 calendar engine with high-contrast dates, revenue intensity badges, and drawer invoice lists.
+4. **Verification**:
+   - Frontend build (`npm run build`): Passed cleanly with 0 TypeScript/CSS errors.
+   - Backend tests (`pytest`): 8/8 passed (100% pass rate).
+   - Live visual verification via browser subagent across all tabs in both Light Mode and Dark Mode.
+
 ---
 
 ## 🔮 Next Phase Preview: Phase Two
@@ -154,3 +180,4 @@ Developed 8 comprehensive automated test suites in `backend/tests/test_salon_api
 - SMS / WhatsApp appointment reminders and notification webhooks.
 - Stripe / Razorpay online payment gateway webhook integration.
 - Automated daily database backup routines with encryption.
+

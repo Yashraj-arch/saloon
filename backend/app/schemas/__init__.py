@@ -5,8 +5,9 @@ from pydantic import BaseModel, EmailStr, Field, ConfigDict
 
 # ----------------- Auth -----------------
 class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str = Field(..., min_length=6, max_length=128)
+    username: Optional[str] = None
+    email: Optional[str] = None
+    password: str = Field(..., min_length=1, max_length=128)
 
 class Token(BaseModel):
     access_token: str

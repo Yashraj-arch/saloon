@@ -70,7 +70,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
 export const api = {
   // Auth
-  login: async (email: string, password: string) => {
+  login: async (identifier: string, password: string) => {
     return request<{
       access_token: string;
       token_type: string;
@@ -82,7 +82,7 @@ export const api = {
       salon_name?: string;
     }>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ username: identifier, email: identifier, password })
     });
   },
 
