@@ -260,3 +260,54 @@ async def test_rate_limiter_mechanism():
     denied, retry_after = rate_limiter.is_allowed(test_ip, "/api/v1/auth/login")
     assert denied is False
     assert retry_after > 0
+
+@pytest.mark.asyncio
+async def test_phase_2_endpoints():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        # Login owner
+        owner_res = await client.post("/api/v1/auth/login", json={"username": "owner", "password": "owner"})
+        assert owner_res.status_code == 200
+        owner_token = owner_res.json()["access_token"]
+        owner_headers = {"Authorization": f"Bearer {owner_token}"}
+
+        # 1. Attendance clock-in
+        clock_in_res = await client.post("/api/v1/attendance/clock-in", json={}, headers=owner_headers)
+        assert clock_in_res.status_code == 200
+        assert clock_in_res.json()["status"] == "ON_FLOOR"
+
+        # 2. Active floor query
+        floor_res = await client.get("/api/v1/attendance/active-floor", headers=owner_headers)
+        assert floor_res.status_code == 200
+        assert len(floor_res.json()) >= 1
+
+        # 3. Create expense
+        exp_res = await client.post(
+            "/api/v1/expenses/",
+            json={
+                "category": "INVENTORY",
+                "title": "Hair Serum Restock",
+                "amount": 1250.00
+            },
+            headers=owner_headers
+        )
+        assert exp_res.status_code == 201
+        exp_id = exp_res.json()["id"]
+
+        # 4. Payroll monthly summary
+        payroll_res = await client.get("/api/v1/payroll/monthly-summary", headers=owner_headers)
+        assert payroll_res.status_code == 200
+        assert isinstance(payroll_res.json(), list)
+
+        # 5. Export CSV
+        csv_res = await client.get("/api/v1/export/bills-csv", headers=owner_headers)
+        assert csv_res.status_code == 200
+        assert "Invoice Number" in csv_res.text
+
+        # 6. Public verification (non-existent -> 404)
+        verify_res = await client.get("/api/v1/verify/NON-EXISTENT-INV-000")
+        assert verify_res.status_code == 404
+
+        # Clean up expense
+        del_exp = await client.delete(f"/api/v1/expenses/{exp_id}", headers=owner_headers)
+        assert del_exp.status_code == 204
+

@@ -222,6 +222,9 @@ class RevenueSummary(BaseModel):
     average_ticket_size: Decimal
     active_staff_count: int
     total_active_services: int
+    total_expenses: Decimal = Decimal("0.00")
+    total_commissions: Decimal = Decimal("0.00")
+    net_profit: Decimal = Decimal("0.00")
 
 class CalendarDayRevenue(BaseModel):
     date: str
@@ -236,3 +239,72 @@ class CalendarDrilldownResponse(BaseModel):
     bills: List[BillResponse] = []
     top_services: List[dict] = []
     staff_breakdown: List[dict] = []
+
+# ----------------- Stylist Attendance (Phase 2) -----------------
+class AttendanceClockIn(BaseModel):
+    stylist_id: Optional[int] = None
+
+class AttendanceClockOut(BaseModel):
+    attendance_id: Optional[int] = None
+    status: str = Field("OFF_DUTY", pattern="^(?i)(OFF_DUTY|ON_BREAK)$")
+
+class AttendanceStatusUpdate(BaseModel):
+    status: str = Field(..., pattern="^(?i)(ON_FLOOR|ON_BREAK|OFF_DUTY)$")
+
+class AttendanceResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    tenant_id: int
+    stylist_id: int
+    stylist_name: Optional[str] = None
+    work_date: date
+    clock_in: datetime
+    clock_out: Optional[datetime] = None
+    status: str
+    hours_worked: float
+
+# ----------------- Salon Expenses & Net Profit (Phase 2) -----------------
+class ExpenseCreate(BaseModel):
+    category: str = Field("INVENTORY", pattern="^(?i)(RENT|UTILITIES|INVENTORY|MAINTENANCE|SALARY|MARKETING|MISC)$")
+    title: str = Field(..., min_length=2, max_length=150)
+    amount: Decimal = Field(..., gt=0, le=10000000)
+    incurred_date: Optional[date] = None
+    notes: Optional[str] = Field(None, max_length=1000)
+
+class ExpenseResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    tenant_id: int
+    category: str
+    title: str
+    amount: Decimal
+    incurred_date: date
+    notes: Optional[str] = None
+    created_at: datetime
+
+# ----------------- Specialist Payroll & Commission (Phase 2) -----------------
+class StylistPayrollSummary(BaseModel):
+    stylist_id: int
+    stylist_name: str
+    email: str
+    commission_rate: float
+    total_services_count: int
+    total_revenue_generated: Decimal
+    total_commission_earned: Decimal
+    is_active: bool
+
+# ----------------- Public Invoice Verification (Phase 2) -----------------
+class VerifiedInvoiceResponse(BaseModel):
+    invoice_number: str
+    salon_name: str
+    salon_phone: str
+    customer_name: str
+    billed_at: datetime
+    subtotal: Decimal
+    discount_amount: Decimal
+    total_amount: Decimal
+    payment_method: str
+    status: str
+    items: List[BillItemResponse] = []
+    is_verified: bool = True
+

@@ -8,7 +8,11 @@ import type {
   RevenueSummary,
   CalendarDayRevenue,
   CalendarDrilldownResponse,
-  SelectedOption
+  SelectedOption,
+  AttendanceRecord,
+  Expense,
+  StylistPayrollSummary,
+  VerifiedInvoice
 } from '../types';
 
 const BASE_URL = '/api/v1';
@@ -194,5 +198,93 @@ export const api = {
       body: JSON.stringify(data)
     }),
     list: (limit = 30) => request<Bill[]>(`/billing?limit=${limit}`)
+  },
+
+  // Phase 2: Attendance, Expenses, Payroll, Verification, Exports
+  attendance: {
+    clockIn: (stylistId?: number) => request<AttendanceRecord>('/attendance/clock-in', {
+      method: 'POST',
+      body: JSON.stringify({ stylist_id: stylistId })
+    }),
+    clockOut: (attendanceId?: number, status = 'OFF_DUTY') => request<AttendanceRecord>('/attendance/clock-out', {
+      method: 'POST',
+      body: JSON.stringify({ attendance_id: attendanceId, status })
+    }),
+    updateStatus: (attendanceId: number, status: 'ON_FLOOR' | 'ON_BREAK' | 'OFF_DUTY') => request<AttendanceRecord>(`/attendance/${attendanceId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status })
+    }),
+    activeFloor: () => request<AttendanceRecord[]>('/attendance/active-floor'),
+    today: () => request<AttendanceRecord[]>('/attendance/today')
+  },
+
+  expenses: {
+    list: (category?: string, year?: number, month?: number) => {
+      const params = new URLSearchParams();
+      if (category) params.append('category', category);
+      if (year) params.append('year', String(year));
+      if (month) params.append('month', String(month));
+      const qs = params.toString();
+      return request<Expense[]>(`/expenses/${qs ? `?${qs}` : ''}`);
+    },
+    create: (data: { category: string; title: string; amount: number; incurred_date?: string; notes?: string }) =>
+      request<Expense>('/expenses/', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }),
+    delete: (id: number) => request<void>(`/expenses/${id}`, {
+      method: 'DELETE'
+    })
+  },
+
+  payroll: {
+    monthlySummary: (year?: number, month?: number) => {
+      const params = new URLSearchParams();
+      if (year) params.append('year', String(year));
+      if (month) params.append('month', String(month));
+      const qs = params.toString();
+      return request<StylistPayrollSummary[]>(`/payroll/monthly-summary${qs ? `?${qs}` : ''}`);
+    }
+  },
+
+  export: {
+    downloadBillsCsv: async (year?: number, month?: number) => {
+      const token = localStorage.getItem('access_token');
+      const params = new URLSearchParams();
+      if (year) params.append('year', String(year));
+      if (month) params.append('month', String(month));
+      const res = await fetch(`/api/v1/export/bills-csv?${params.toString()}`, {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      });
+      if (!res.ok) throw new Error('Failed to export bills CSV');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Lux_Bills_${year || 'all'}_${month || 'all'}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    },
+    downloadPnlCsv: async (year?: number, month?: number) => {
+      const token = localStorage.getItem('access_token');
+      const params = new URLSearchParams();
+      if (year) params.append('year', String(year));
+      if (month) params.append('month', String(month));
+      const res = await fetch(`/api/v1/export/pnl-csv?${params.toString()}`, {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      });
+      if (!res.ok) throw new Error('Failed to export P&L CSV');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Lux_PnL_${year || 'current'}_${month || 'current'}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    }
+  },
+
+  verify: {
+    get: (invoiceNumber: string) => request<VerifiedInvoice>(`/verify/${encodeURIComponent(invoiceNumber.trim())}`)
   }
 };

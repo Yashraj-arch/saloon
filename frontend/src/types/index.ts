@@ -83,6 +83,7 @@ export interface Bill {
   invoice_number: string;
   customer_id: number;
   customer_name?: string | null;
+  customer_phone?: string | null;
   staff_id?: number | null;
   staff_name?: string | null;
   subtotal: number;
@@ -106,6 +107,9 @@ export interface RevenueSummary {
   average_ticket_size: number;
   active_staff_count: number;
   total_active_services: number;
+  total_expenses?: number;
+  total_commissions?: number;
+  net_profit?: number;
 }
 
 export interface CalendarDayRevenue {
@@ -123,3 +127,54 @@ export interface CalendarDrilldownResponse {
   top_services: { service_name: string; count: number; revenue: number }[];
   staff_breakdown: { staff_name: string; bill_count: number; revenue: number }[];
 }
+
+// Phase 2 Types
+export interface AttendanceRecord {
+  id: number;
+  tenant_id: number;
+  stylist_id: number;
+  stylist_name?: string;
+  work_date: string;
+  clock_in: string;
+  clock_out?: string | null;
+  status: 'ON_FLOOR' | 'ON_BREAK' | 'OFF_DUTY';
+  hours_worked: number;
+}
+
+export interface Expense {
+  id: number;
+  tenant_id: number;
+  category: 'RENT' | 'UTILITIES' | 'INVENTORY' | 'MAINTENANCE' | 'SALARY' | 'MARKETING' | 'MISC';
+  title: string;
+  amount: number;
+  incurred_date: string;
+  notes?: string | null;
+  created_at: string;
+}
+
+export interface StylistPayrollSummary {
+  stylist_id: number;
+  stylist_name: string;
+  email: string;
+  commission_rate: number;
+  total_services_count: number;
+  total_revenue_generated: number;
+  total_commission_earned: number;
+  is_active: boolean;
+}
+
+export interface VerifiedInvoice {
+  invoice_number: string;
+  salon_name: string;
+  salon_phone: string;
+  customer_name: string;
+  billed_at: string;
+  subtotal: number;
+  discount_amount: number;
+  total_amount: number;
+  payment_method: string;
+  status: string;
+  items: BillItem[];
+  is_verified: boolean;
+}
+

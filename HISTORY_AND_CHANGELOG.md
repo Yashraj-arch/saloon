@@ -451,3 +451,39 @@ dist/assets/index.css                 60.08 kB
 dist/assets/index.js               1,286.99 kB
 ✓ built in 706ms
 ```
+
+---
+
+## Phase 8: Phase 2 Enterprise Operations & Zero-API Architectural Extension
+
+### Milestone 13: Phase 2 Operational Core (WhatsApp Dispatch, QR Verification, Attendance, Payroll, Expenses & CSV Ledgers)
+- **Date**: 2026-11-20
+- **Category**: [Full-Stack | Architecture | Zero-API Local Algorithms]
+- **The Problem / Goal**:
+  Incorporate advanced operational patterns extracted from `EMS-Shekru-Web-App` and `pharmacy` architectures without relying on third-party cloud keys or storage (Zero-API rule). Provide instant customer WhatsApp billing, tamper-proof invoice verification, dynamic floor attendance, commission payroll calculation, operating expense tracking, and native CSV ledger exports.
+- **What Was Done**:
+  1. **Zero-API WhatsApp Dispatch Engine**: Implemented direct `https://wa.me/{phone}?text={encoded}` protocol handler with custom message template and 1-click quick chips for Dad's numbers (`+91 97630 38822` and `+91 77966 11974`).
+  2. **In-House QR Code Digital Verification**: Browser-rendered QR codes on receipt slips linking to public endpoint `/verify?invoice={invoice_number}` with standalone `PublicVerifyInvoicePage`.
+  3. **Stylist Attendance & Floor Shifts**: Added `StylistAttendance` database model (`ON_FLOOR`, `ON_BREAK`, `OFF_DUTY`) and shift toggle widget in Staff POS, dynamically driving active floor metrics.
+  4. **Specialist Monthly Commission & Payroll**: Automated calculation of commission payouts based on closed bill line items and agreed stylist commission percentages.
+  5. **Salon Operating Expenses & True Net Profit**: Created expense tracker across 6 categories (`RENT`, `UTILITIES`, `INVENTORY`, `MAINTENANCE`, `SALARY`, `MISC`) and integrated formula $\text{Net Operating Profit} = \text{Gross Revenue} - (\text{Commissions} + \text{Expenses})$.
+  6. **Zero-Dependency CSV Ledger Export**: Built Python native `csv` streaming endpoints `/api/v1/export/bills-csv` and `/api/v1/export/pnl-csv` with zero third-party dependencies.
+- **Files Created / Modified**:
+  - `backend/app/models/__init__.py`: Added `StylistAttendance` and `Expense` models.
+  - `backend/app/schemas/__init__.py`: Added schemas for attendance, expenses, payroll, and invoice verification.
+  - `backend/app/api/v1/endpoints/verify.py`: Public invoice verification router.
+  - `backend/app/api/v1/endpoints/attendance.py`: Stylist shift clock-in/out and floor status router.
+  - `backend/app/api/v1/endpoints/expenses.py`: Operating expenses CRUD router.
+  - `backend/app/api/v1/endpoints/payroll.py`: Monthly commission payroll aggregation router.
+  - `backend/app/api/v1/endpoints/export.py`: Native CSV streaming router.
+  - `backend/app/api/v1/endpoints/analytics.py`: Wired floor attendance and net profit calculations.
+  - `backend/app/api/v1/router.py`: Registered all Phase 2 routers.
+  - `backend/tests/test_salon_api.py`: Added automated test suite `test_phase_2_endpoints()`.
+  - `frontend/src/types/index.ts`: Added Phase 2 interfaces.
+  - `frontend/src/services/api.ts`: Added API client methods.
+  - `frontend/src/pages/PublicVerifyInvoicePage.tsx`: Public digital invoice verification UI.
+  - `frontend/src/pages/StaffPOSDashboard.tsx`: Added shift attendance widget, receipt QR code, and WhatsApp dispatch modal.
+  - `frontend/src/pages/SalonOwnerDashboard.tsx`: Added Monthly Commission & Payroll table, Operating Expenses Ledger, True Net Profit metric, and CSV exports.
+  - `frontend/src/App.tsx`: Wired public invoice verification routing.
+- **Current Status**: Verified, 9/9 automated backend tests passing, frontend builds in 910ms with 0 errors.
+

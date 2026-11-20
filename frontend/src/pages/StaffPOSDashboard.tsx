@@ -11,11 +11,15 @@ import {
   Printer,
   Image as ImageIcon,
   FileText,
-  X
+  X,
+  Share2,
+  Send,
+  Clock
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import type { Customer, Service, Bill, SelectedOption } from '../types';
+import QRCode from 'qrcode';
+import type { Customer, Service, Bill, SelectedOption, AttendanceRecord } from '../types';
 import { api } from '../services/api';
 
 export const StaffPOSDashboard: React.FC = () => {
@@ -51,6 +55,92 @@ export const StaffPOSDashboard: React.FC = () => {
   const [submittingBill, setSubmittingBill] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
+
+  // QR Code & WhatsApp Modal State (Phase 2)
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [whatsAppPhone, setWhatsAppPhone] = useState('');
+  const [whatsAppMessage, setWhatsAppMessage] = useState('');
+
+  // Attendance State (Phase 2)
+  const [attendanceRecord, setAttendanceRecord] = useState<AttendanceRecord | null>(null);
+
+  const loadAttendance = async () => {
+    try {
+      const records = await api.attendance.today();
+      if (records.length > 0) {
+        setAttendanceRecord(records[0]);
+      } else {
+        setAttendanceRecord(null);
+      }
+    } catch (err) {
+      console.error('Failed to load attendance:', err);
+    }
+  };
+
+  const handleClockIn = async () => {
+    try {
+      const rec = await api.attendance.clockIn();
+      setAttendanceRecord(rec);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error clocking in';
+      alert(msg);
+    }
+  };
+
+  const handleClockOut = async () => {
+    try {
+      const rec = await api.attendance.clockOut(attendanceRecord?.id);
+      setAttendanceRecord(rec);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error clocking out';
+      alert(msg);
+    }
+  };
+
+  const handleToggleBreak = async () => {
+    if (!attendanceRecord) return;
+    const nextStatus = attendanceRecord.status === 'ON_FLOOR' ? 'ON_BREAK' : 'ON_FLOOR';
+    try {
+      const rec = await api.attendance.updateStatus(attendanceRecord.id, nextStatus);
+      setAttendanceRecord(rec);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error updating status';
+      alert(msg);
+    }
+  };
+
+  useEffect(() => {
+    loadAttendance();
+  }, []);
+
+  useEffect(() => {
+    if (receiptBill) {
+      const verifyUrl = `${window.location.origin}/verify?invoice=${receiptBill.invoice_number}`;
+      QRCode.toDataURL(verifyUrl, { width: 140, margin: 1, color: { dark: '#0f172a', light: '#ffffff' } })
+        .then(setQrCodeDataUrl)
+        .catch(console.error);
+
+      const servicesList = receiptBill.items.map(i => `• ${i.service_name} (₹${Number(i.final_price).toFixed(2)})`).join('\n');
+      const msg = `✨ LUX SALON & SPA ✨\nDear ${receiptBill.customer_name || 'Valued Client'},\nThank you for choosing Lux!\n\n🧾 Invoice No: ${receiptBill.invoice_number}\n✂️ Services Rendered:\n${servicesList}\n💵 Total Paid: ₹${Number(receiptBill.total_amount).toLocaleString()}\n💳 Tender: ${receiptBill.payment_method}\n📅 Date: ${new Date(receiptBill.billed_at).toLocaleString()}\n\n🔗 Official Digital Verification:\n${verifyUrl}\n\nWe look forward to welcoming you back!`;
+      setWhatsAppMessage(msg);
+
+      const cust = customers.find(c => c.id === receiptBill.customer_id);
+      setWhatsAppPhone(cust?.phone || '');
+    } else {
+      setQrCodeDataUrl('');
+    }
+  }, [receiptBill, customers]);
+
+  const handleSendWhatsApp = () => {
+    const clean = whatsAppPhone.replace(/[^0-9]/g, '');
+    if (!clean || clean.length < 10) {
+      alert('Please select or enter a valid 10-digit phone number.');
+      return;
+    }
+    const formatted = clean.startsWith('91') && clean.length === 12 ? clean : clean.length === 10 ? `91${clean}` : clean;
+    window.open(`https://wa.me/${formatted}?text=${encodeURIComponent(whatsAppMessage)}`, '_blank');
+  };
 
   const handlePrint = () => {
     if (!receiptRef.current) return;
@@ -298,6 +388,52 @@ export const StaffPOSDashboard: React.FC = () => {
           <p className="text-xs text-[var(--text-muted)] mt-1">
             Register clients, select services + modifiers (hairwash/shampoo), and generate invoices.
           </p>
+
+          {/* Stylist Attendance Shift Widget (Phase 2) */}
+          <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-sky-500/5 dark:bg-white/[0.03] border border-[var(--bento-card-border)] text-xs">
+            <Clock className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+            <span className="text-[var(--text-muted)] font-medium">Floor Shift:</span>
+            <span
+              className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
+                attendanceRecord?.status === 'ON_FLOOR'
+                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
+                  : attendanceRecord?.status === 'ON_BREAK'
+                  ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30'
+                  : 'bg-slate-200 dark:bg-white/10 text-[var(--text-muted)]'
+              }`}
+            >
+              {attendanceRecord ? attendanceRecord.status.replace('_', ' ') : 'OFF DUTY'}
+            </span>
+
+            <div className="flex items-center gap-1.5 ml-2">
+              {!attendanceRecord || attendanceRecord.status === 'OFF_DUTY' ? (
+                <button
+                  type="button"
+                  onClick={handleClockIn}
+                  className="px-2.5 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] shadow-sm transition cursor-pointer"
+                >
+                  Clock In to Floor
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleToggleBreak}
+                    className="px-2 py-0.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold text-[10px] border border-amber-500/20 transition cursor-pointer"
+                  >
+                    {attendanceRecord.status === 'ON_FLOOR' ? 'Take Break' : 'Resume Floor'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClockOut}
+                    className="px-2 py-0.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-700 dark:text-rose-300 font-bold text-[10px] border border-rose-500/20 transition cursor-pointer"
+                  >
+                    Clock Out
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Tab switch */}
@@ -892,13 +1028,30 @@ export const StaffPOSDashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="text-center pt-5 text-[10px] text-slate-400 font-sans">
+              {/* Dynamic QR Code for Digital Invoice Verification (Phase 2) */}
+              {qrCodeDataUrl && (
+                <div className="pt-3 pb-1 text-center border-t border-dashed border-slate-300">
+                  <img src={qrCodeDataUrl} alt="Verify QR" className="w-20 h-20 mx-auto" />
+                  <p className="text-[9px] text-slate-500 mt-1 font-sans">Scan to verify digital invoice</p>
+                </div>
+              )}
+
+              <div className="text-center pt-3 text-[10px] text-slate-400 font-sans">
                 Thank you for choosing Lux!
               </div>
             </div>
 
-            {/* Action Buttons: Print, PDF Download, Image Download */}
+            {/* Action Buttons: WhatsApp Share, Print, PDF Download, Image Download */}
             <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/10 space-y-2 font-sans">
+              <button
+                type="button"
+                onClick={() => setShowWhatsAppModal(true)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/25 transition cursor-pointer"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                Share via WhatsApp
+              </button>
+
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
@@ -935,6 +1088,105 @@ export const StaffPOSDashboard: React.FC = () => {
                 className="w-full py-2 text-center text-xs font-semibold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition"
               >
                 Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* WhatsApp Custom Share Modal (Phase 2 - Zero External APIs) */}
+      {showWhatsAppModal && receiptBill && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in font-sans">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-white/10 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/10">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
+                  <Share2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-[var(--text-main)] font-['Outfit']">Share Invoice via WhatsApp</h3>
+                  <p className="text-[11px] text-[var(--text-muted)]">Zero API Keys • Universal Browser Protocol</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowWhatsAppModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Recipient Quick Chips */}
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
+                Select Recipient or Enter Phone Number
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {receiptBill.customer_name && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cust = customers.find((c) => c.id === receiptBill.customer_id);
+                      if (cust?.phone) setWhatsAppPhone(cust.phone);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20 text-[11px] font-semibold hover:bg-sky-500/20 transition cursor-pointer"
+                  >
+                    👤 Client ({receiptBill.customer_name})
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setWhatsAppPhone('+919763038822')}
+                  className="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/30 text-[11px] font-bold hover:bg-amber-500/20 transition cursor-pointer"
+                >
+                  👑 Dad (Primary: 97630 38822)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWhatsAppPhone('+917796611974')}
+                  className="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/30 text-[11px] font-bold hover:bg-amber-500/20 transition cursor-pointer"
+                >
+                  👑 Dad (2nd: 77966 11974)
+                </button>
+              </div>
+
+              <input
+                type="text"
+                placeholder="+91 98765 43210"
+                value={whatsAppPhone}
+                onChange={(e) => setWhatsAppPhone(e.target.value)}
+                className="w-full mt-2 px-3 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-xs text-[var(--text-main)] outline-none focus:border-emerald-500 font-mono"
+              />
+            </div>
+
+            {/* Editable Message Template */}
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1">
+                Invoice Message Text (Editable)
+              </label>
+              <textarea
+                rows={7}
+                value={whatsAppMessage}
+                onChange={(e) => setWhatsAppMessage(e.target.value)}
+                className="w-full p-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-xs text-[var(--text-main)] font-mono outline-none focus:border-emerald-500 leading-relaxed"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-white/10">
+              <button
+                type="button"
+                onClick={() => setShowWhatsAppModal(false)}
+                className="px-4 py-2 text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSendWhatsApp}
+                className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/25 transition cursor-pointer"
+              >
+                <Send className="w-3.5 h-3.5" />
+                Open in WhatsApp
               </button>
             </div>
           </div>

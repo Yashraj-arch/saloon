@@ -9,7 +9,10 @@ import {
   BarChart3,
   Clock,
   ShieldCheck,
-  Trash2
+  Trash2,
+  Receipt,
+  Download,
+  Wallet
 } from 'lucide-react';
 import {
   AreaChart,
@@ -20,7 +23,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
-import type { RevenueSummary, Service, User, Customer } from '../types';
+import type { RevenueSummary, Service, User, Customer, Expense, StylistPayrollSummary } from '../types';
 import { api } from '../services/api';
 import { BentoCard } from '../components/bento/BentoCard';
 import { CalendarBentoWidget } from '../components/calendar/CalendarBentoWidget';
@@ -33,16 +36,28 @@ export const SalonOwnerDashboard: React.FC = () => {
   const [services, setServices] = useState<Service[]>([]);
   const [staffList, setStaffList] = useState<User[]>([]);
   const [deletedCustomers, setDeletedCustomers] = useState<Customer[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [payrollSummaries, setPayrollSummaries] = useState<StylistPayrollSummary[]>([]);
   
   // Selected date for the 1921-2099 drilldown drawer
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   // Active view tab in owner dashboard
-  const [activeTab, setActiveTab] = useState<'overview' | 'services' | 'staff' | 'audit'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'services' | 'staff' | 'expenses' | 'audit'>('overview');
 
   // Modals
   const [showAddServiceModal, setShowAddServiceModal] = useState(false);
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
+  const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
+
+  // New Expense Form (Phase 2)
+  const [newExpense, setNewExpense] = useState({
+    category: 'INVENTORY',
+    title: '',
+    amount: 1000,
+    incurred_date: new Date().toISOString().split('T')[0],
+    notes: ''
+  });
 
   // New Service Form
   const [newService, setNewService] = useState({
@@ -69,18 +84,22 @@ export const SalonOwnerDashboard: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [sum, chartRes, srv, stf, delCust] = await Promise.all([
+      const [sum, chartRes, srv, stf, delCust, expList, payList] = await Promise.all([
         api.admin.getSummary(),
         api.admin.getRevenueChart(chartPeriod),
         api.services.list(),
         api.admin.listStaff(),
-        api.admin.listDeletedCustomers()
+        api.admin.listDeletedCustomers(),
+        api.expenses.list(),
+        api.payroll.monthlySummary()
       ]);
       setSummary(sum);
       setChartData(chartRes.data);
       setServices(srv);
       setStaffList(stf);
       setDeletedCustomers(delCust);
+      setExpenses(expList);
+      setPayrollSummaries(payList);
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
     }
@@ -89,6 +108,36 @@ export const SalonOwnerDashboard: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [chartPeriod]);
+
+  const handleCreateExpense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.expenses.create(newExpense);
+      setShowAddExpenseModal(false);
+      setNewExpense({
+        category: 'INVENTORY',
+        title: '',
+        amount: 1000,
+        incurred_date: new Date().toISOString().split('T')[0],
+        notes: ''
+      });
+      loadData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to record expense';
+      alert(msg);
+    }
+  };
+
+  const handleDeleteExpense = async (id: number) => {
+    if (!confirm('Are you sure you want to remove this expense record?')) return;
+    try {
+      await api.expenses.delete(id);
+      loadData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete expense';
+      alert(msg);
+    }
+  };
 
   const handleCreateService = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -197,7 +246,17 @@ export const SalonOwnerDashboard: React.FC = () => {
                 : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
             }`}
           >
-            Staff Team ({staffList.length})
+            Staff & Payroll ({staffList.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('expenses')}
+            className={`px-3 py-1.5 text-xs font-bold rounded-xl transition ${
+              activeTab === 'expenses'
+                ? 'bg-sky-600 text-white shadow-md shadow-sky-600/25'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
+            }`}
+          >
+            Expenses & P&L ({expenses.length})
           </button>
           <button
             onClick={() => setActiveTab('audit')}
@@ -309,6 +368,52 @@ export const SalonOwnerDashboard: React.FC = () => {
                 <span className="text-[var(--text-main)]">{summary?.total_active_services || 0} Services</span>
               </div>
             </BentoCard>
+          </div>
+
+          {/* Phase 2: True Net Profit & Accounting CSV Ledger Controls */}
+          <div className="bento-card p-5 bg-gradient-to-r from-sky-500/5 via-emerald-500/5 to-transparent border border-sky-500/20">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+                  <Wallet className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                      Monthly True Net Operating Profit (P&L)
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      Live Formula
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-3 mt-1">
+                    <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-['Outfit']">
+                      ₹{summary?.net_profit !== undefined ? Number(summary.net_profit).toLocaleString() : '0'}
+                    </span>
+                    <span className="text-xs text-[var(--text-muted)]">
+                      = Billed Gross ₹{summary ? Number(summary.monthly_revenue).toLocaleString() : '0'} − (Payroll ₹{summary?.total_commissions ? Number(summary.total_commissions).toLocaleString() : '0'} + Expenses ₹{summary?.total_expenses ? Number(summary.total_expenses).toLocaleString() : '0'})
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => api.export.downloadBillsCsv()}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/10 text-xs font-bold text-[var(--text-main)] border border-[var(--bento-card-border)] shadow-sm transition cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                  Bills CSV
+                </button>
+                <button
+                  onClick={() => api.export.downloadPnlCsv()}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/10 text-xs font-bold text-[var(--text-main)] border border-[var(--bento-card-border)] shadow-sm transition cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  P&L Ledger CSV
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Bento Row 2: Revenue Chart Visualizer & Key Metrics */}
@@ -609,6 +714,242 @@ export const SalonOwnerDashboard: React.FC = () => {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Stylist Monthly Commission & Payroll Ledger (Phase 2 from EMS) */}
+          <div className="bento-card p-6 mt-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[var(--bento-card-border)] gap-2">
+              <div>
+                <h3 className="text-lg font-bold text-[var(--text-main)] font-['Outfit'] flex items-center gap-2">
+                  <Wallet className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+                  Specialist Monthly Commission & Payroll Statement
+                </h3>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                  Calculated automatically from closed customer bills and agreed commission rates
+                </p>
+              </div>
+              <div className="text-xs font-semibold px-3 py-1 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
+                Current Month Cycle
+              </div>
+            </div>
+
+            {payrollSummaries.length === 0 ? (
+              <div className="py-8 text-center text-[var(--text-muted)] text-xs">
+                No closed bills recorded this month yet for commission calculation.
+              </div>
+            ) : (
+              <div className="overflow-x-auto mt-4">
+                <table className="w-full text-left text-xs text-[var(--text-main)]">
+                  <thead className="text-[11px] uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--bento-card-border)] bg-slate-50 dark:bg-white/[0.01]">
+                    <tr>
+                      <th className="py-3 px-4">Specialist / Stylist</th>
+                      <th className="py-3 px-4">Commission %</th>
+                      <th className="py-3 px-4 text-center">Services Completed</th>
+                      <th className="py-3 px-4 text-right">Gross Sales (₹)</th>
+                      <th className="py-3 px-4 text-right">Earned Payout (₹)</th>
+                      <th className="py-3 px-4 text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--bento-card-border)]">
+                    {payrollSummaries.map((p) => (
+                      <tr key={p.stylist_id} className="hover:bg-slate-50 dark:hover:bg-white/[0.02] transition">
+                        <td className="py-3.5 px-4 font-bold text-[var(--text-main)]">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg bg-sky-500/15 text-sky-600 dark:text-sky-400 font-bold flex items-center justify-center text-xs">
+                              {p.stylist_name.charAt(0)}
+                            </div>
+                            <div>
+                              <div>{p.stylist_name}</div>
+                              <div className="text-[10px] text-[var(--text-muted)] font-normal">{p.email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 font-semibold text-sky-600 dark:text-sky-400">
+                          {p.commission_rate}%
+                        </td>
+                        <td className="py-3.5 px-4 text-center font-medium">
+                          {p.total_services_count}
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-medium text-[var(--text-muted)]">
+                          ₹{Number(p.total_revenue_generated).toLocaleString()}
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-black text-emerald-600 dark:text-emerald-400 text-sm">
+                          ₹{Number(p.total_commission_earned).toLocaleString()}
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                            Accruing
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="border-t-2 border-[var(--bento-card-border)] bg-slate-50/50 dark:bg-white/[0.02] font-bold">
+                    <tr>
+                      <td colSpan={3} className="py-3 px-4 text-xs">Total Stylist Payout Pool</td>
+                      <td className="py-3 px-4 text-right text-xs text-[var(--text-muted)]">
+                        ₹{payrollSummaries.reduce((acc, c) => acc + Number(c.total_revenue_generated), 0).toLocaleString()}
+                      </td>
+                      <td className="py-3 px-4 text-right text-sm font-black text-emerald-600 dark:text-emerald-400">
+                        ₹{payrollSummaries.reduce((acc, c) => acc + Number(c.total_commission_earned), 0).toLocaleString()}
+                      </td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Operating Expenses & P&L Tab (Phase 2 from EMS) */}
+      {activeTab === 'expenses' && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-bold text-[var(--text-main)] font-['Outfit'] flex items-center gap-2">
+                <Receipt className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+                Salon Operating Expenses Ledger
+              </h2>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                Track operational costs (Rent, Utilities, Inventory, Maintenance) to compute True Net Operating Profit.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => api.export.downloadPnlCsv()}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-[var(--text-main)] font-bold text-xs border border-[var(--bento-card-border)] transition cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                Export P&L CSV
+              </button>
+              <button
+                onClick={() => setShowAddExpenseModal(true)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-600/25 transition cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                Record Expense
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Expense KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <BentoCard>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                Total Expenses Recorded
+              </span>
+              <div className="mt-2 flex items-baseline justify-between">
+                <span className="text-2xl font-black text-rose-600 dark:text-rose-400 font-['Outfit']">
+                  ₹{expenses.reduce((acc, e) => acc + Number(e.amount), 0).toLocaleString()}
+                </span>
+                <span className="text-xs text-[var(--text-muted)]">{expenses.length} Entries</span>
+              </div>
+            </BentoCard>
+
+            <BentoCard>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                Largest Expense Category
+              </span>
+              <div className="mt-2 flex items-baseline justify-between">
+                <span className="text-2xl font-black text-[var(--text-main)] font-['Outfit']">
+                  {(() => {
+                    if (expenses.length === 0) return 'None';
+                    const byCat = expenses.reduce((acc: Record<string, number>, e) => {
+                      acc[e.category] = (acc[e.category] || 0) + Number(e.amount);
+                      return acc;
+                    }, {});
+                    const top = Object.entries(byCat).sort((a, b) => b[1] - a[1])[0];
+                    return top ? top[0] : 'None';
+                  })()}
+                </span>
+                <span className="text-xs text-rose-600 dark:text-rose-400 font-bold">Overhead</span>
+              </div>
+            </BentoCard>
+
+            <BentoCard>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                True Net Profit Margin
+              </span>
+              <div className="mt-2 flex items-baseline justify-between">
+                <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-['Outfit']">
+                  ₹{summary?.net_profit !== undefined ? Number(summary.net_profit).toLocaleString() : '0'}
+                </span>
+                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">After Expenses & Payroll</span>
+              </div>
+            </BentoCard>
+          </div>
+
+          {/* Expenses Table */}
+          <div className="bento-card p-6">
+            <div className="flex items-center justify-between pb-4 border-b border-[var(--bento-card-border)]">
+              <h3 className="text-sm font-bold text-[var(--text-main)] uppercase tracking-wider">
+                Logged Expense Vouchers
+              </h3>
+              <span className="text-xs text-[var(--text-muted)]">
+                Latest transactions
+              </span>
+            </div>
+
+            {expenses.length === 0 ? (
+              <div className="py-12 text-center text-[var(--text-muted)] text-sm">
+                No expenses logged yet. Click "Record Expense" above to add your salon operational costs.
+              </div>
+            ) : (
+              <div className="overflow-x-auto mt-4">
+                <table className="w-full text-left text-xs text-[var(--text-main)]">
+                  <thead className="text-[11px] uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--bento-card-border)] bg-slate-50 dark:bg-white/[0.01]">
+                    <tr>
+                      <th className="py-3 px-4">Incurred Date</th>
+                      <th className="py-3 px-4">Category</th>
+                      <th className="py-3 px-4">Title / Description</th>
+                      <th className="py-3 px-4">Notes</th>
+                      <th className="py-3 px-4 text-right">Amount (₹)</th>
+                      <th className="py-3 px-4 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--bento-card-border)]">
+                    {expenses.map((exp) => (
+                      <tr key={exp.id} className="hover:bg-slate-50 dark:hover:bg-white/[0.02] transition">
+                        <td className="py-3.5 px-4 font-mono text-[var(--text-muted)]">
+                          {exp.incurred_date}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${
+                            exp.category === 'RENT' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' :
+                            exp.category === 'UTILITIES' ? 'bg-sky-500/10 text-sky-600 border-sky-500/20' :
+                            exp.category === 'INVENTORY' ? 'bg-purple-500/10 text-purple-600 border-purple-500/20' :
+                            exp.category === 'SALARY' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' :
+                            'bg-slate-500/10 text-slate-600 border-slate-500/20'
+                          }`}>
+                            {exp.category}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 font-bold text-[var(--text-main)]">
+                          {exp.title}
+                        </td>
+                        <td className="py-3.5 px-4 text-[var(--text-muted)] max-w-xs truncate">
+                          {exp.notes || '—'}
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-black text-rose-600 dark:text-rose-400 text-sm">
+                          ₹{Number(exp.amount).toLocaleString()}
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <button
+                            onClick={() => handleDeleteExpense(exp.id)}
+                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
+                            title="Delete record"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -925,6 +1266,101 @@ export const SalonOwnerDashboard: React.FC = () => {
                   className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-600/25 transition"
                 >
                   Add Staff Member
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Expense Modal (Phase 2 from EMS) */}
+      {showAddExpenseModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-white dark:bg-[#0c121e] border border-slate-200 dark:border-white/10 rounded-3xl p-6 shadow-2xl animate-fade-in">
+            <h3 className="text-xl font-bold text-[var(--text-main)] font-['Outfit']">
+              Record Salon Operating Expense
+            </h3>
+            <p className="text-xs text-[var(--text-muted)] mt-1">
+              Log operational expenditure to calculate true salon EBITDA and net profit margins.
+            </p>
+
+            <form onSubmit={handleCreateExpense} className="mt-4 space-y-3.5">
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-muted)]">Category *</label>
+                <select
+                  value={newExpense.category}
+                  onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}
+                  className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-[#131b2e] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-[var(--text-main)] outline-none focus:border-sky-500 cursor-pointer"
+                >
+                  <option value="INVENTORY">Inventory (Shampoos, Creams, Colors)</option>
+                  <option value="RENT">Rent & Lease</option>
+                  <option value="UTILITIES">Utilities (Electricity, Water, Internet)</option>
+                  <option value="MAINTENANCE">Equipment & Salon Maintenance</option>
+                  <option value="SALARY">Fixed Staff Salary / Base Wages</option>
+                  <option value="MISC">Miscellaneous Overheads</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-muted)]">Expense Title *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. L'Oreal Professional Bulk Restock"
+                  value={newExpense.title}
+                  onChange={(e) => setNewExpense({ ...newExpense, title: e.target.value })}
+                  className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-xs text-[var(--text-main)] outline-none focus:border-sky-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-[var(--text-muted)]">Amount (₹) *</label>
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    value={newExpense.amount}
+                    onChange={(e) => setNewExpense({ ...newExpense, amount: Number(e.target.value) })}
+                    className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-xs text-[var(--text-main)] outline-none focus:border-sky-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-[var(--text-muted)]">Incurred Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={newExpense.incurred_date}
+                    onChange={(e) => setNewExpense({ ...newExpense, incurred_date: e.target.value })}
+                    className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-xs text-[var(--text-main)] outline-none focus:border-sky-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-muted)]">Notes / Receipt Reference</label>
+                <textarea
+                  rows={2}
+                  placeholder="Vendor invoice #, UPI transaction ID, warranty notes..."
+                  value={newExpense.notes}
+                  onChange={(e) => setNewExpense({ ...newExpense, notes: e.target.value })}
+                  className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-xs text-[var(--text-main)] outline-none focus:border-sky-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-[var(--bento-card-border)]">
+                <button
+                  type="button"
+                  onClick={() => setShowAddExpenseModal(false)}
+                  className="px-4 py-2 text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-main)]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-600/25 transition cursor-pointer"
+                >
+                  Save Expense Voucher
                 </button>
               </div>
             </form>

@@ -30,6 +30,8 @@ class Tenant(Base):
     customers = relationship("Customer", back_populates="tenant", cascade="all, delete-orphan")
     services = relationship("Service", back_populates="tenant", cascade="all, delete-orphan")
     bills = relationship("Bill", back_populates="tenant", cascade="all, delete-orphan")
+    attendances = relationship("StylistAttendance", back_populates="tenant", cascade="all, delete-orphan")
+    expenses = relationship("Expense", back_populates="tenant", cascade="all, delete-orphan")
 
 
 class User(Base):
@@ -49,6 +51,7 @@ class User(Base):
     # Relationships
     tenant = relationship("Tenant", back_populates="users")
     bills_handled = relationship("Bill", back_populates="staff", foreign_keys="Bill.staff_id")
+    attendances = relationship("StylistAttendance", back_populates="stylist", cascade="all, delete-orphan")
 
 
 class Customer(Base):
@@ -165,3 +168,37 @@ class CustomerAuditLog(Base):
 
     # Relationships
     customer = relationship("Customer", back_populates="audit_logs")
+
+
+class StylistAttendance(Base):
+    __tablename__ = "stylist_attendances"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    stylist_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    work_date = Column(Date, nullable=False, index=True)
+    clock_in = Column(DateTime, default=utcnow, nullable=False)
+    clock_out = Column(DateTime, nullable=True)
+    status = Column(String(50), default="ON_FLOOR", nullable=False)  # ON_FLOOR, ON_BREAK, OFF_DUTY
+    hours_worked = Column(Float, default=0.0)
+
+    # Relationships
+    tenant = relationship("Tenant", back_populates="attendances")
+    stylist = relationship("User", back_populates="attendances")
+
+
+class Expense(Base):
+    __tablename__ = "expenses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    category = Column(String(80), nullable=False, index=True)  # RENT, UTILITIES, INVENTORY, MAINTENANCE, SALARY, MARKETING, MISC
+    title = Column(String(150), nullable=False)
+    amount = Column(Numeric(10, 2), nullable=False)
+    incurred_date = Column(Date, nullable=False, index=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=utcnow)
+
+    # Relationships
+    tenant = relationship("Tenant", back_populates="expenses")
+

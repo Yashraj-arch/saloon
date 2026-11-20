@@ -6,6 +6,7 @@ import { SuperAdminDashboard } from './pages/SuperAdminDashboard';
 import { SalonOwnerDashboard } from './pages/SalonOwnerDashboard';
 import { StaffPOSDashboard } from './pages/StaffPOSDashboard';
 import { RulesPage } from './pages/RulesPage';
+import { PublicVerifyInvoicePage } from './pages/PublicVerifyInvoicePage';
 import { ThemeProvider } from './context/ThemeContext';
 import { Sparkles, Shield, Crown, Scissors, ArrowRight } from 'lucide-react';
 
@@ -15,6 +16,12 @@ const AppContent: React.FC = () => {
   const [currentUserEmail, setCurrentUserEmail] = useState<string>('owner@luxeaura.com');
   const [currentSalonName, setCurrentSalonName] = useState<string | undefined>('Luxe Aura Hair & Spa');
   const [currentNav, setCurrentNav] = useState<'dashboard' | 'rules'>('dashboard');
+
+  // Check if navigating directly to verify an invoice via QR link (?invoice=...)
+  const [verifyInvoiceNumber, setVerifyInvoiceNumber] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('invoice');
+  });
 
   // Manual login modal state
   const [emailInput, setEmailInput] = useState('');
@@ -76,6 +83,18 @@ const AppContent: React.FC = () => {
       setCurrentNav('dashboard');
     }
   }, [currentRole, currentNav]);
+
+  if (verifyInvoiceNumber) {
+    return (
+      <PublicVerifyInvoicePage
+        invoiceNumber={verifyInvoiceNumber}
+        onBack={() => {
+          setVerifyInvoiceNumber(null);
+          window.history.pushState({}, '', '/');
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--bento-bg)] text-[var(--text-main)] flex flex-col font-['Plus_Jakarta_Sans',sans-serif] transition-colors duration-300">

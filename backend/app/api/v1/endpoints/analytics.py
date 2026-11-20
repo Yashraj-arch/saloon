@@ -8,7 +8,7 @@ from sqlalchemy import select, func, and_, desc
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
-from app.models import Bill, BillItem, Customer, Service, User
+from app.models import Bill, BillItem, Customer, Service, User, Expense, StylistAttendance
 from app.schemas import RevenueSummary, CalendarDayRevenue, CalendarDrilldownResponse, BillResponse, BillItemResponse
 from app.api.deps import require_salon_owner
 
@@ -75,13 +75,23 @@ async def get_revenue_summary(
     )
     today_cust = (await db.execute(cust_query)).scalar_one()
 
-    # Active Staff count
+    # Active Staff on floor count (real-time attendance with fallback)
+    today_date = now.date()
+    attendance_query = select(func.count(StylistAttendance.id)).where(
+        StylistAttendance.tenant_id == tenant_id,
+        StylistAttendance.work_date == today_date,
+        StylistAttendance.status == "ON_FLOOR",
+        StylistAttendance.clock_out.is_(None)
+    )
+    floor_stylists_count = (await db.execute(attendance_query)).scalar_one()
+
     staff_query = select(func.count(User.id)).where(
         User.tenant_id == tenant_id,
         User.role == "STAFF",
         User.is_active == True
     )
     staff_count = (await db.execute(staff_query)).scalar_one()
+    effective_floor_count = floor_stylists_count if floor_stylists_count > 0 else staff_count
 
     # Active Services count
     srv_query = select(func.count(Service.id)).where(
@@ -94,6 +104,33 @@ async def get_revenue_summary(
     if today_bills > 0:
         ats = Decimal(daily_rev) / Decimal(today_bills)
 
+    # Operating Expenses for current month
+    exp_query = select(func.coalesce(func.sum(Expense.amount), 0)).where(
+        Expense.tenant_id == tenant_id,
+        Expense.incurred_date >= month_start.date()
+    )
+    total_expenses = Decimal(str((await db.execute(exp_query)).scalar_one()))
+
+    # Total Stylist Commissions for current month
+    month_bills_query = (
+        select(Bill)
+        .options(selectinload(Bill.staff))
+        .where(
+            Bill.tenant_id == tenant_id,
+            Bill.billed_at >= month_start,
+            Bill.status == "PAID"
+        )
+    )
+    month_bills = (await db.execute(month_bills_query)).scalars().all()
+    total_commissions = Decimal("0.00")
+    for b in month_bills:
+        if b.staff and b.staff.commission_rate:
+            total_commissions += b.total_amount * (Decimal(str(b.staff.commission_rate)) / Decimal("100.0"))
+    total_commissions = round(total_commissions, 2)
+
+    # True Net Operating Profit
+    net_profit = round(Decimal(monthly_rev) - (total_commissions + total_expenses), 2)
+
     return RevenueSummary(
         daily_revenue=Decimal(daily_rev),
         weekly_revenue=Decimal(weekly_rev),
@@ -102,8 +139,11 @@ async def get_revenue_summary(
         today_bills_count=today_bills,
         today_customers_count=today_cust,
         average_ticket_size=round(ats, 2),
-        active_staff_count=staff_count,
-        total_active_services=srv_count
+        active_staff_count=effective_floor_count,
+        total_active_services=srv_count,
+        total_expenses=total_expenses,
+        total_commissions=total_commissions,
+        net_profit=net_profit
     )
 
 
