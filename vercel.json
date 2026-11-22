@@ -3,20 +3,20 @@
   "buildCommand": "node build.js",
   "rewrites": [
     {
-      "source": "/api",
-      "destination": "/api"
+      "source": "/api/(.*)",
+      "destination": "/api/app/main"
     },
     {
-      "source": "/api/(.*)",
-      "destination": "/api"
+      "source": "/api",
+      "destination": "/api/app/main"
     },
     {
       "source": "/docs",
-      "destination": "/api"
+      "destination": "/api/app/main"
     },
     {
       "source": "/openapi.json",
-      "destination": "/api"
+      "destination": "/api/app/main"
     },
     {
       "source": "/((?!api(?:/|$)|docs|openapi\\.json).*)",
