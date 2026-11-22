@@ -1,13 +1,13 @@
 import os
 import sys
 
-# Ensure both api/ and backend/ are in sys.path
+# Ensure api/, backend/ and root directories are in sys.path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.abspath(os.path.join(current_dir, ".."))
 backend_dir = os.path.join(root_dir, "backend")
 
-for p in [current_dir, backend_dir, root_dir, "/var/task/api", "/var/task/backend", "/var/task"]:
-    if p and os.path.exists(p) and p not in sys.path:
+for p in [current_dir, os.path.join(current_dir, "app"), backend_dir, root_dir, "/var/task/api", "/var/task/backend", "/var/task"]:
+    if p and p not in sys.path:
         sys.path.insert(0, p)
 
 try:
