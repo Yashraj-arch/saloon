@@ -1,12 +1,11 @@
 import os
 import sys
 
-# Ensure api/, backend/ and root directories are in sys.path
-current_dir = os.path.dirname(os.path.abspath(__file__))
-root_dir = os.path.abspath(os.path.join(current_dir, ".."))
-backend_dir = os.path.join(root_dir, "backend")
+_current = os.path.dirname(os.path.abspath(__file__))
+_root_dir = os.path.abspath(os.path.join(_current, ".."))
+_backend_dir = os.path.join(_root_dir, "backend")
 
-for p in [current_dir, os.path.join(current_dir, "app"), backend_dir, root_dir, "/var/task/api", "/var/task/backend", "/var/task"]:
+for p in [_backend_dir, _root_dir, "/var/task/backend", "/var/task"]:
     if p and p not in sys.path:
         sys.path.insert(0, p)
 
@@ -21,21 +20,16 @@ except Exception:
         from fastapi import FastAPI
         from fastapi.responses import JSONResponse
 
-        app = FastAPI(title="Lux API Initialization Diagnostics")
+        app = FastAPI(title="Lux API Diagnostic Fallback")
 
-        @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
-        def error_handler(path: str):
+        @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"])
+        def fatal_diag(path: str):
             return JSONResponse(
                 status_code=500,
                 content={
                     "error": "FastAPI Initialization Failed",
                     "message": str(e),
                     "traceback": err_tb,
-                    "current_dir": current_dir,
-                    "root_exists": os.path.exists(root_dir),
-                    "root_files": os.listdir(root_dir) if os.path.exists(root_dir) else [],
+                    "sys_path": sys.path
                 }
             )
-
-# Vercel ASGI entrypoint
-handler = app

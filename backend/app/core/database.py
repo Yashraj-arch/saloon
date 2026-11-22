@@ -21,7 +21,11 @@ def get_engine():
     connect_args = {}
     is_tidb = "tidbcloud.com" in db_url.lower() or settings.MYSQL_HOST.endswith("tidbcloud.com")
     if is_tidb or "ssl" in db_url.lower():
-        ctx = ssl.create_default_context()
+        try:
+            import certifi
+            ctx = ssl.create_default_context(cafile=certifi.where())
+        except Exception:
+            ctx = ssl.create_default_context()
         connect_args["ssl"] = ctx
         if sys.platform == "win32":
             import asyncio
