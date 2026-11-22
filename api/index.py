@@ -13,26 +13,42 @@ for p in [_current, _app_dir, _backend_dir, _root_dir, "/var/task/api", "/var/ta
 try:
     import _app
     sys.modules["app"] = _app
-    from app.main import app
-except Exception:
-    try:
-        from backend.app.main import app
-    except Exception as e:
-        import traceback
-        err_tb = traceback.format_exc()
-        from fastapi import FastAPI
-        from fastapi.responses import JSONResponse
+    from app.main import app as _fastapi_app
+    
+    # Wrap with Vercel ASGI path restoration middleware
+    class VercelPathMiddleware:
+        def __init__(self, app):
+            self.app = app
 
-        app = FastAPI(title="Lux API Diagnostic Fallback")
+        async def __call__(self, scope, receive, send):
+            if scope["type"] == "http":
+                headers = dict(scope.get("headers", []))
+                matched = headers.get(b"x-matched-path") or headers.get(b"x-forwarded-uri")
+                if matched:
+                    raw_path = matched.decode("latin1").split("?")[0]
+                    # Only override if matched is a more specific path
+                    if raw_path and raw_path not in ("/api", "/api/index", "/api/"):
+                        scope["path"] = raw_path
+            await self.app(scope, receive, send)
 
-        @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"])
-        def fatal_diag(path: str):
-            return JSONResponse(
-                status_code=500,
-                content={
-                    "error": "FastAPI Initialization Failed",
-                    "message": str(e),
-                    "traceback": err_tb,
-                    "sys_path": sys.path
-                }
-            )
+    app = VercelPathMiddleware(_fastapi_app)
+
+except Exception as e:
+    import traceback
+    err_tb = traceback.format_exc()
+    from fastapi import FastAPI
+    from fastapi.responses import JSONResponse
+
+    app = FastAPI(title="Lux API Diagnostic Fallback")
+
+    @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"])
+    def fatal_diag(path: str):
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "FastAPI Initialization Failed",
+                "message": str(e),
+                "traceback": err_tb,
+                "sys_path": sys.path
+            }
+        )

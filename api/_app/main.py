@@ -69,6 +69,9 @@ try:
 
     app.include_router(api_router, prefix=settings.API_V1_STR)
 
+    @app.get("/api", tags=["Health"])
+    @app.get("/api/", tags=["Health"])
+    @app.get("/api/index", tags=["Health"])
     @app.get("/health", tags=["Health"])
     @app.get("/api/health", tags=["Health"])
     @app.get("/api/v1/health", tags=["Health"])
