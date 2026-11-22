@@ -17,10 +17,11 @@ logger = logging.getLogger("salon_crm")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Initializing database and tables on MySQL 8.0...")
+    logger.info("Initializing database and tables on MySQL / TiDB...")
     try:
-        # Create database if MySQL
-        if "mysql" in settings.get_database_url():
+        # Create database if MySQL local (skip for managed TiDB Cloud or custom DATABASE_URL)
+        db_url = settings.get_database_url()
+        if "mysql" in db_url and "tidbcloud.com" not in db_url and not settings.DATABASE_URL:
             import pymysql
             try:
                 raw_conn = pymysql.connect(
@@ -73,9 +74,10 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.get_cors_origins(),
+    allow_origin_regex=r"^https://.*\.vercel\.app$",
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With"],
+    allow_methods=["*"],
+    allow_headers=["*"],
     max_age=86400  # Cache preflight requests for 24 hours
 )
 

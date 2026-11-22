@@ -45,7 +45,13 @@ class Settings(BaseSettings):
 
     def get_database_url(self) -> str:
         if self.DATABASE_URL:
-            return self.DATABASE_URL
+            url = self.DATABASE_URL.strip()
+            # Normalize driver for async engine
+            if url.startswith("mysql://"):
+                url = "mysql+aiomysql://" + url[len("mysql://"):]
+            elif url.startswith("mysql+pymysql://"):
+                url = "mysql+aiomysql://" + url[len("mysql+pymysql://"):]
+            return url
         # URL encode password to handle special characters such as '@', ':', '/' safely
         encoded_password = urllib.parse.quote_plus(self.MYSQL_PASSWORD) if self.MYSQL_PASSWORD else ""
         pwd_part = f":{encoded_password}" if encoded_password else ""
