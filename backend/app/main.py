@@ -1,3 +1,13 @@
+import os
+import sys
+
+_current = os.path.dirname(os.path.abspath(__file__))
+_api_dir = os.path.dirname(_current)
+_root_dir = os.path.dirname(_api_dir)
+for _p in [_api_dir, _current, _root_dir, "/var/task/api", "/var/task"]:
+    if _p and _p not in sys.path:
+        sys.path.insert(0, _p)
+
 import uuid
 import logging
 from contextlib import asynccontextmanager
@@ -54,9 +64,9 @@ async def lifespan(app: FastAPI):
     yield
     logger.info("Shutting down application...")
 
-# Control OpenAPI Docs visibility in production
-docs_url = "/docs" if settings.DEBUG or settings.ENVIRONMENT != "production" else None
-redoc_url = "/redoc" if settings.DEBUG or settings.ENVIRONMENT != "production" else None
+# OpenAPI Docs visibility
+docs_url = "/docs"
+redoc_url = "/redoc"
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -102,6 +112,8 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
 @app.get("/health", tags=["Health"])
+@app.get("/api/health", tags=["Health"])
+@app.get("/api/v1/health", tags=["Health"])
 async def health_check():
     return {
         "status": "healthy",
@@ -109,3 +121,6 @@ async def health_check():
         "database_target": settings.MYSQL_DB,
         "environment": settings.ENVIRONMENT
     }
+
+# Vercel ASGI handler
+handler = app
