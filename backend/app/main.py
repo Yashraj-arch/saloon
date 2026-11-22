@@ -48,15 +48,15 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.warning(f"Could not automatically run CREATE DATABASE on MySQL: {e}")
 
-        # Create all tables asynchronously
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        logger.info("Database schema initialized successfully.")
-
-        # Seed initial demo data
-        async with AsyncSessionLocal() as session:
-            await init_db_data(session)
-        logger.info("Demo data verification/seeding completed.")
+        # Verify tables and seed demo data
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            async with AsyncSessionLocal() as session:
+                await init_db_data(session)
+            logger.info("Database schema initialized and demo data verified.")
+        except Exception as db_init_err:
+            logger.warning(f"Database schema verification note: {db_init_err}")
 
     except Exception as e:
         logger.error(f"Error during startup database initialization: {e}")

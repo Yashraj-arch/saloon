@@ -52,12 +52,13 @@ def get_engine():
                 **pool_kwargs
             )
     except Exception as e:
+        tmp_db = "/tmp/saloon.db" if (os.environ.get("VERCEL") == "1" or not os.access(".", os.W_OK)) else "./saloon.db"
         logger.warning(
             f"MySQL connection failed: {e}. "
-            "Falling back to high-performance local SQLite (./saloon.db)."
+            f"Falling back to local SQLite ({tmp_db})."
         )
         return create_async_engine(
-            "sqlite+aiosqlite:///./saloon.db",
+            f"sqlite+aiosqlite:///{tmp_db}",
             echo=False,
             **({"poolclass": NullPool} if is_testing else {})
         )

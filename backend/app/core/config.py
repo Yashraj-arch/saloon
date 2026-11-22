@@ -20,15 +20,15 @@ class Settings(BaseSettings):
     RATE_LIMIT_LOGIN_PER_MINUTE: int = 10
     RATE_LIMIT_GLOBAL_PER_MINUTE: int = 120
 
-    # MySQL Database Config (loaded from .env)
-    MYSQL_USER: str = "root"
-    MYSQL_PASSWORD: str = ""
-    MYSQL_HOST: str = "127.0.0.1"
-    MYSQL_PORT: int = 3306
+    # MySQL / TiDB Cloud Database Config
+    MYSQL_USER: str = "2yaWXp5KdkviUv2.root"
+    MYSQL_PASSWORD: str = "G7pCxOYxaabCeN0O"
+    MYSQL_HOST: str = "gateway01.ap-southeast-1.prod.aws.tidbcloud.com"
+    MYSQL_PORT: int = 4000
     MYSQL_DB: str = "saloon_db"
 
-    # Optional override URL
-    DATABASE_URL: Optional[str] = None
+    # Default to production TiDB Cloud Serverless URI
+    DATABASE_URL: Optional[str] = "mysql+aiomysql://2yaWXp5KdkviUv2.root:G7pCxOYxaabCeN0O@gateway01.ap-southeast-1.prod.aws.tidbcloud.com:4000/saloon_db"
 
     model_config = SettingsConfigDict(
         env_file=(
